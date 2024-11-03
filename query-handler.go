@@ -38,6 +38,17 @@ type HttpSelect struct {
 	Function string `json:"function"`
 }
 
+// @Summary Query data from table
+// @Description Queries data with specified grouping and selection
+// @Tags query
+// @Accept  json
+// @Produce  json
+// @Param query body HttpQueryRequest true "Query Request"
+// @Success 200 {string} string "Query has been processed"
+// @Failure 400 {string} string "Invalid request payload"
+// @Failure 404 {string} string "Could not find files"
+// @Failure 500 {string} string "Internal server error"
+// @Router /query [post]
 func handleQuery(w http.ResponseWriter, r *http.Request) {
 	var queryReq HttpQueryRequest
 	err := json.NewDecoder(r.Body).Decode(&queryReq)
@@ -50,7 +61,7 @@ func handleQuery(w http.ResponseWriter, r *http.Request) {
 	files, err := findDataFiles(queryReq.TableName)
 	if err != nil {
 		log.Fatalf("Could not find files %v", err)
-		http.Error(w, "Could not find files", http.StatusInternalServerError)
+		http.Error(w, "Could not find files", http.StatusNotFound)
 		return
 	}
 
