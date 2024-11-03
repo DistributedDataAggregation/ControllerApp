@@ -93,7 +93,7 @@ func sendTaskToExecutor(files []string, executor string, mainExecutor string, ex
 	conn, err := sendRequest(queryRequest, executor, executor == mainExecutor)
 
 	if err != nil {
-		log.Fatalf("Error sending request to executor %s: %v", executor, err)
+		log.Printf("Error sending request to executor %s: %v", executor, err)
 		return nil, err
 	}
 
@@ -113,7 +113,7 @@ func sendRequest(queryRequest *protomodels.QueryRequest, executor string, isMain
 	data, err := proto.Marshal(queryRequest)
 	if err != nil {
 		conn.Close()
-		log.Fatalf("Marshal error: %v", err)
+		log.Printf("Marshal error: %v", err)
 		return nil, err
 	}
 
@@ -121,7 +121,7 @@ func sendRequest(queryRequest *protomodels.QueryRequest, executor string, isMain
 	_, err = conn.Write(message)
 	if err != nil {
 		conn.Close()
-		log.Fatalf("Error writing data to connection with %s: %v", executor, err)
+		log.Printf("Error writing data to connection with %s: %v", executor, err)
 		return nil, err
 	}
 
@@ -139,7 +139,7 @@ func receiveResponseFromExecutor(conn net.Conn) (string, error) {
 	buffer := make([]byte, 4096)
 	n, err := conn.Read(buffer)
 	if err != nil {
-		log.Fatalf("Error reading data from connection with main executor: %v", err)
+		log.Printf("Error reading data from connection with main executor: %v", err)
 		return "", err
 	}
 
