@@ -53,21 +53,21 @@ func handleQuery(w http.ResponseWriter, r *http.Request) {
 	var queryReq HttpQueryRequest
 	err := json.NewDecoder(r.Body).Decode(&queryReq)
 	if err != nil {
-		log.Fatalf("Invalid request payload: %v", err)
+		log.Printf("Invalid request payload: %v", err)
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
 	files, err := findDataFiles(queryReq.TableName)
 	if err != nil {
-		log.Fatalf("Could not find files %v", err)
+		log.Printf("Could not find files %v", err)
 		http.Error(w, "Could not find files", http.StatusNotFound)
 		return
 	}
 
 	err = sendToExecutors(files, queryReq)
 	if err != nil {
-		log.Fatalf("Error processing request: %v", err)
+		log.Printf("Error processing request")
 		http.Error(w, "Error processing request", http.StatusInternalServerError)
 		return
 	}

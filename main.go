@@ -23,7 +23,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 	docs.SwaggerInfo.Host = "localhost" + config.ControllerPort
-	http.HandleFunc("/query", handleQuery)
+	http.HandleFunc("/api/v1/query", handleQuery)
 	http.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	log.Printf("Starting server on %v", config.ControllerPort)
