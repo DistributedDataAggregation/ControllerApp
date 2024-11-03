@@ -1,0 +1,65 @@
+basePath: /api/v1
+definitions:
+  main.HttpQueryRequest:
+    properties:
+      group_columns:
+        items:
+          type: string
+        type: array
+      select:
+        items:
+          $ref: '#/definitions/main.HttpSelect'
+        type: array
+      table_name:
+        type: string
+    type: object
+  main.HttpSelect:
+    properties:
+      column:
+        type: string
+      function:
+        type: string
+    type: object
+externalDocs:
+  description: OpenAPI
+  url: https://swagger.io/resources/open-api/
+info:
+  contact: {}
+  title: Swagger Distributed data aggregation system API
+  version: "1.0"
+paths:
+  /query:
+    post:
+      consumes:
+      - application/json
+      description: Queries data with specified grouping and selection
+      parameters:
+      - description: Query Request
+        in: body
+        name: query
+        required: true
+        schema:
+          $ref: '#/definitions/main.HttpQueryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Query has been processed
+          schema:
+            type: string
+        "400":
+          description: Invalid request payload
+          schema:
+            type: string
+        "404":
+          description: Could not find files
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Query data from table
+      tags:
+      - query
+swagger: "2.0"

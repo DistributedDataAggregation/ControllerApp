@@ -1,0 +1,100 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "Swagger Distributed data aggregation system API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/api/v1",
+    "paths": {
+        "/query": {
+            "post": {
+                "description": "Queries data with specified grouping and selection",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "query"
+                ],
+                "summary": "Query data from table",
+                "parameters": [
+                    {
+                        "description": "Query Request",
+                        "name": "query",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.HttpQueryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Query has been processed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request payload",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Could not find files",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "main.HttpQueryRequest": {
+            "type": "object",
+            "properties": {
+                "group_columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "select": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.HttpSelect"
+                    }
+                },
+                "table_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.HttpSelect": {
+            "type": "object",
+            "properties": {
+                "column": {
+                    "type": "string"
+                },
+                "function": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "externalDocs": {
+        "description": "OpenAPI",
+        "url": "https://swagger.io/resources/open-api/"
+    }
+}
