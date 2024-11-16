@@ -59,7 +59,7 @@ func handleQuery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	files, err := findDataFiles(queryReq.TableName)
-	if err != nil {
+	if err != nil || len(files) == 0 {
 		log.Printf("Could not find files %v", err)
 		http.Error(w, "Could not find files", http.StatusNotFound)
 		return

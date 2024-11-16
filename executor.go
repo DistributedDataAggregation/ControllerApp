@@ -106,7 +106,7 @@ func sendRequest(queryRequest *protomodels.QueryRequest, executor string, isMain
 		return nil, err
 	}
 
-	size := 1000000000000000000 //proto.Size(queryRequest)
+	size := proto.Size(queryRequest)
 	sizeBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(sizeBytes, uint32(size))
 
@@ -117,8 +117,15 @@ func sendRequest(queryRequest *protomodels.QueryRequest, executor string, isMain
 		return nil, err
 	}
 
-	message := append(sizeBytes, data...)
-	_, err = conn.Write(message)
+	//message := append(sizeBytes, data...)
+	_, err = conn.Write(sizeBytes)
+	if err != nil {
+		conn.Close()
+		log.Printf("Error writing data to connection with %s: %v", executor, err)
+		return nil, err
+	}
+
+	_, err = conn.Write(data)
 	if err != nil {
 		conn.Close()
 		log.Printf("Error writing data to connection with %s: %v", executor, err)
