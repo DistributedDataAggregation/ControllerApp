@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"path/filepath"
+
+	"github.com/beevik/guid"
 )
 
 // type Aggregate int
@@ -38,6 +39,18 @@ type HttpSelect struct {
 	Function string `json:"function"`
 }
 
+type HttpResult struct {
+	Result string `json:"result"`
+}
+
+type QueryHandler struct {
+	Scheduler QueriesScheduler
+}
+
+func NewQueryHandler(scheduler *QueriesScheduler) *QueryHandler {
+	return &QueryHandler{Scheduler: *scheduler}
+}
+
 // @Summary Query data from table
 // @Description Queries data with specified grouping and selection
 // @Tags query
@@ -49,7 +62,7 @@ type HttpSelect struct {
 // @Failure 404 {string} string "Could not find files"
 // @Failure 500 {string} string "Internal server error"
 // @Router /query [post]
-func handleQuery(w http.ResponseWriter, r *http.Request) {
+func (h *QueryHandler) handleQuery(w http.ResponseWriter, r *http.Request) {
 	var queryReq HttpQueryRequest
 	err := json.NewDecoder(r.Body).Decode(&queryReq)
 	if err != nil {
@@ -58,28 +71,23 @@ func handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	files, err := findDataFiles(queryReq.TableName)
-	if err != nil || len(files) == 0 {
-		log.Printf("Could not find files %v", err)
-		http.Error(w, "Could not find files", http.StatusNotFound)
-		return
+	queueReq := QueueRequest{
+		Guid:       guid.New(),
+		Request:    queryReq,
+		ResultChan: make(chan HttpResult),
+		ErrorChan:  make(chan error),
 	}
 
-	err = sendToExecutors(files, queryReq)
+	h.Scheduler.AddQuery(queueReq)
+
+	result, err := <-queueReq.ResultChan, <-queueReq.ErrorChan
+
 	if err != nil {
-		log.Printf("Error processing request")
+		log.Printf("Error processing request %v", err)
 		http.Error(w, "Error processing request", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Query has been processed"))
-}
-
-func findDataFiles(tableName string) ([]string, error) {
-	files, err := filepath.Glob(filepath.Join(config.DataPath, "*"+tableName+"*"))
-	if err != nil {
-		return nil, err
-	}
-	return files, nil
+	w.Write([]byte(result.Result))
 }

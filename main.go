@@ -22,8 +22,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
+
+	executorsClient := NewExecutorsClient()
+	planner := NewPlanner()
+	processor := NewProcessor(planner, executorsClient)
+	scheduler := NewQueriesScheduler(processor)
+	queryHandler := NewQueryHandler(scheduler)
+
 	docs.SwaggerInfo.Host = "localhost" + config.ControllerPort
-	http.HandleFunc("/api/v1/query", handleQuery)
+	http.HandleFunc("/api/v1/query", queryHandler.handleQuery)
 	http.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	log.Printf("Starting server on %v", config.ControllerPort)
