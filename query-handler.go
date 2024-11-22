@@ -57,9 +57,8 @@ func NewQueryHandler(scheduler *QueriesScheduler) *QueryHandler {
 // @Accept  json
 // @Produce  json
 // @Param query body HttpQueryRequest true "Query Request"
-// @Success 200 {string} string "Query has been processed"
+// @Success 200 {object} HttpResult "Query has been processed"
 // @Failure 400 {string} string "Invalid request payload"
-// @Failure 404 {string} string "Could not find files"
 // @Failure 500 {string} string "Internal server error"
 // @Router /query [post]
 func (h *QueryHandler) handleQuery(w http.ResponseWriter, r *http.Request) {
