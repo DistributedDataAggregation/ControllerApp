@@ -40,7 +40,7 @@ type HttpSelect struct {
 }
 
 type HttpResult struct {
-	Result string `json:"result"`
+	Result []string `json:"result"`
 }
 
 type QueryHandler struct {
@@ -89,5 +89,5 @@ func (h *QueryHandler) handleQuery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(result.Result))
+	json.NewEncoder(w).Encode(result)
 }

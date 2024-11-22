@@ -60,6 +60,6 @@ func (p *Processor) sendToExecutors(filesPerExecutorIdx map[int][]string, execut
 		return HttpResult{}, err
 	}
 
-	return HttpResult{Result: response}, nil
+	return response, nil
 
 }

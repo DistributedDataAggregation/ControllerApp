@@ -47,10 +47,10 @@ func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQuery
 		FilesNames:   files,
 		GroupColumns: queryReq.GroupColumns,
 		Select:       selects,
-		Executor: &protomodels.MainExecutor{
+		Executor: &protomodels.ExecutorInformation{
 			IsCurrentNodeMain: isCurrentNodeMain,
-			IpAddress:         strings.Split(mainExecutor, ":")[0],
-			Port:              8080, // TODO int parse strings.Split(mainExecutor, ":")[1],
+			MainIpAddress:     strings.Split(mainExecutor, ":")[0],
+			MainPort:          8080, // TODO int parse strings.Split(mainExecutor, ":")[1],
 			ExecutorsCount:    executorsCount,
 		},
 	}
@@ -104,15 +104,39 @@ func (ec *ExecutorsClient) sendRequest(queryRequest *protomodels.QueryRequest, c
 	return nil
 }
 
-func (ec *ExecutorsClient) receiveResponseFromMainExecutor() (string, error) {
+func (ec *ExecutorsClient) receiveResponseFromMainExecutor() (HttpResult, error) {
 	conn := ec.Sockets[ec.MainIdx]
 
-	buffer := make([]byte, 4096)
-	n, err := conn.Read(buffer)
+	sizeBytes := make([]byte, 4)
+	_, err := conn.Read(sizeBytes)
+	if err != nil {
+		log.Printf("Error reading size from connection with main executor: %v", err)
+		return HttpResult{}, err
+	}
+	messageSize := binary.BigEndian.Uint32(sizeBytes)
+
+	data := make([]byte, messageSize)
+	_, err = conn.Read(data)
 	if err != nil {
 		log.Printf("Error reading data from connection with main executor: %v", err)
-		return "", err
+		return HttpResult{}, err
 	}
 
-	return string(buffer[:n]), nil
+	return ec.readResponseFromMainExecutor(data)
+}
+
+func (ec *ExecutorsClient) readResponseFromMainExecutor(data []byte) (HttpResult, error) {
+
+	var queryResult protomodels.QueryResult
+	err := proto.Unmarshal(data, &queryResult)
+	if err != nil {
+		log.Printf("Error unmarshalling QueryResult: %v", err)
+		return HttpResult{}, err
+	}
+
+	httpResult := HttpResult{
+		Result: queryResult.Results,
+	}
+
+	return httpResult, nil
 }
