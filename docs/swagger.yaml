@@ -13,6 +13,13 @@ definitions:
       table_name:
         type: string
     type: object
+  main.HttpResult:
+    properties:
+      result:
+        items:
+          type: string
+        type: array
+    type: object
   main.HttpSelect:
     properties:
       column:
@@ -46,13 +53,9 @@ paths:
         "200":
           description: Query has been processed
           schema:
-            type: string
+            $ref: '#/definitions/main.HttpResult'
         "400":
           description: Invalid request payload
-          schema:
-            type: string
-        "404":
-          description: Could not find files
           schema:
             type: string
         "500":

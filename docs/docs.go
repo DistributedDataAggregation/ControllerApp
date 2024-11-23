@@ -43,17 +43,11 @@ const docTemplate = `{
                     "200": {
                         "description": "Query has been processed",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/main.HttpResult"
                         }
                     },
                     "400": {
                         "description": "Invalid request payload",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "404": {
-                        "description": "Could not find files",
                         "schema": {
                             "type": "string"
                         }
@@ -86,6 +80,17 @@ const docTemplate = `{
                 },
                 "table_name": {
                     "type": "string"
+                }
+            }
+        },
+        "main.HttpResult": {
+            "type": "object",
+            "properties": {
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
