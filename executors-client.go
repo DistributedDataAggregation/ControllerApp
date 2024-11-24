@@ -127,15 +127,15 @@ func (ec *ExecutorsClient) receiveResponseFromMainExecutor() (HttpResult, error)
 
 func (ec *ExecutorsClient) readResponseFromMainExecutor(data []byte) (HttpResult, error) {
 
-	var queryResult protomodels.QueryResult
-	err := proto.Unmarshal(data, &queryResult)
+	var queryResponse protomodels.QueryResponse
+	err := proto.Unmarshal(data, &queryResponse)
 	if err != nil {
 		log.Printf("Error unmarshalling QueryResult: %v", err)
 		return HttpResult{}, err
 	}
 
 	httpResult := HttpResult{
-		Result: queryResult.Results,
+		Response: queryResponse,
 	}
 
 	return httpResult, nil

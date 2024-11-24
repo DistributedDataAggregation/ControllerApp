@@ -1,6 +1,7 @@
 package main
 
 import (
+	"controller/protomodels"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -40,7 +41,7 @@ type HttpSelect struct {
 }
 
 type HttpResult struct {
-	Result []string `json:"result"`
+	Response protomodels.QueryResponse `json:"result"`
 }
 
 type QueryHandler struct {
