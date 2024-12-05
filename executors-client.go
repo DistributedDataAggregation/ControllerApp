@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"controller/protomodels"
 
@@ -22,12 +23,27 @@ func NewExecutorsClient() *ExecutorsClient {
 }
 
 func OpenSockets(executors []string) []net.Conn {
-
 	sockets := []net.Conn{}
 	for _, executor := range executors {
-		conn, err := net.Dial("tcp", executor)
+		var conn net.Conn
+		var err error
+		const maxRetries = 10
+		baseDelay := time.Second // Base delay for retries
+
+		for retries := 0; retries < maxRetries; retries++ {
+			conn, err = net.Dial("tcp", executor)
+			if err == nil {
+				break
+			}
+
+			// Calculate exponential backoff
+			backoff := baseDelay * (1 << retries) // 1, 2, 4, 8, 16 seconds
+			log.Printf("Retrying to connect to %v after %v... (%d/%d)", executor, backoff, retries+1, maxRetries)
+			time.Sleep(backoff)
+		}
+
 		if err != nil {
-			log.Panicf("Failed to dial connet to %v: %v", executor, err)
+			log.Panicf("Failed to dial connect to %v after %d retries: %v", executor, maxRetries, err)
 		}
 		sockets = append(sockets, conn)
 	}
@@ -49,8 +65,8 @@ func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQuery
 		Select:       selects,
 		Executor: &protomodels.ExecutorInformation{
 			IsCurrentNodeMain: isCurrentNodeMain,
-			MainIpAddress:     strings.Split(mainExecutor, ":")[0],
-			MainPort:          8080, // TODO int parse strings.Split(mainExecutor, ":")[1],
+			MainIpAddress:     "172.20.0.2",
+			MainPort:          8081, // TODO int parse strings.Split(mainExecutor, ":")[1],
 			ExecutorsCount:    executorsCount,
 		},
 	}
