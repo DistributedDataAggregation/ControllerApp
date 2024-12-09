@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/beevik/guid"
 )
@@ -42,6 +43,7 @@ type HttpSelect struct {
 
 type HttpResult struct {
 	Response protomodels.QueryResponse `json:"result"`
+	Time     int64                     `json:"processing_time"`
 }
 
 type QueryHandler struct {
@@ -63,6 +65,8 @@ func NewQueryHandler(scheduler *QueriesScheduler) *QueryHandler {
 // @Failure 500 {string} string "Internal server error"
 // @Router /query [post]
 func (h *QueryHandler) handleQuery(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
 	var queryReq HttpQueryRequest
 	err := json.NewDecoder(r.Body).Decode(&queryReq)
 	if err != nil {
@@ -87,6 +91,8 @@ func (h *QueryHandler) handleQuery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error processing request", http.StatusInternalServerError)
 		return
 	}
+
+	result.Time = time.Since(start).Milliseconds()
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(result)

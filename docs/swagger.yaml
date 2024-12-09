@@ -15,10 +15,10 @@ definitions:
     type: object
   main.HttpResult:
     properties:
+      processing_time:
+        type: integer
       result:
-        items:
-          type: string
-        type: array
+        $ref: '#/definitions/protomodels.QueryResponse'
     type: object
   main.HttpSelect:
     properties:
@@ -26,6 +26,29 @@ definitions:
         type: string
       function:
         type: string
+    type: object
+  protomodels.PartialResult:
+    properties:
+      count:
+        type: integer
+      value:
+        type: integer
+    type: object
+  protomodels.QueryResponse:
+    properties:
+      values:
+        items:
+          $ref: '#/definitions/protomodels.Value'
+        type: array
+    type: object
+  protomodels.Value:
+    properties:
+      grouping_value:
+        type: string
+      results:
+        items:
+          $ref: '#/definitions/protomodels.PartialResult'
+        type: array
     type: object
 externalDocs:
   description: OpenAPI
