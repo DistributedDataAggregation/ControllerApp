@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"log"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -55,7 +54,7 @@ func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQuery
 	for i, sel := range queryReq.SelectColumns {
 		selects[i] = &protomodels.Select{
 			Column:   sel.Column,
-			Function: protomodels.Aggregate(protomodels.Aggregate_value[strings.ToUpper(sel.Function)]),
+			Function: protomodels.Aggregate(protomodels.Aggregate_value[sel.Function]),
 		}
 	}
 
