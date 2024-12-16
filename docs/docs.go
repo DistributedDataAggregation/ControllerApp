@@ -86,11 +86,11 @@ const docTemplate = `{
         "main.HttpResult": {
             "type": "object",
             "properties": {
+                "processing_time": {
+                    "type": "integer"
+                },
                 "result": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/protomodels.QueryResponse"
                 }
             }
         },
@@ -102,6 +102,42 @@ const docTemplate = `{
                 },
                 "function": {
                     "type": "string"
+                }
+            }
+        },
+        "protomodels.PartialResult": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "protomodels.QueryResponse": {
+            "type": "object",
+            "properties": {
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/protomodels.Value"
+                    }
+                }
+            }
+        },
+        "protomodels.Value": {
+            "type": "object",
+            "properties": {
+                "grouping_value": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/protomodels.PartialResult"
+                    }
                 }
             }
         }

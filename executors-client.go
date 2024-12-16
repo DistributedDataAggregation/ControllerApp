@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
 	"net"
 	"sync"
@@ -141,6 +142,10 @@ func (ec *ExecutorsClient) receiveResponseFromMainExecutor() (HttpResult, error)
 }
 
 func (ec *ExecutorsClient) readResponseFromMainExecutor(data []byte) (HttpResult, error) {
+
+	if len(data) == 0 {
+		return HttpResult{}, fmt.Errorf("empty input data")
+	}
 
 	var queryResponse protomodels.QueryResponse
 	err := proto.Unmarshal(data, &queryResponse)
