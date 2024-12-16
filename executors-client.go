@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -55,7 +55,7 @@ func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQuery
 	for i, sel := range queryReq.SelectColumns {
 		selects[i] = &protomodels.Select{
 			Column:   sel.Column,
-			Function: protomodels.Aggregate(protomodels.Aggregate_value[strings.ToUpper(sel.Function)]),
+			Function: protomodels.Aggregate(protomodels.Aggregate_value[sel.Function]),
 		}
 	}
 
@@ -142,6 +142,10 @@ func (ec *ExecutorsClient) receiveResponseFromMainExecutor() (HttpResult, error)
 }
 
 func (ec *ExecutorsClient) readResponseFromMainExecutor(data []byte) (HttpResult, error) {
+
+	if len(data) == 0 {
+		return HttpResult{}, fmt.Errorf("empty input data")
+	}
 
 	var queryResponse protomodels.QueryResponse
 	err := proto.Unmarshal(data, &queryResponse)
