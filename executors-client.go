@@ -55,7 +55,7 @@ func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQuery
 	for i, sel := range queryReq.SelectColumns {
 		selects[i] = &protomodels.Select{
 			Column:   sel.Column,
-			Function: protomodels.Aggregate(protomodels.Aggregate_value[sel.Function]),
+			Function: protomodels.Aggregate(protomodels.Aggregate_value[sel.Function]), // TODO handle unsupported aggregate (now it returns default Minimum)
 		}
 	}
 
@@ -65,8 +65,8 @@ func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQuery
 		Select:       selects,
 		Executor: &protomodels.ExecutorInformation{
 			IsCurrentNodeMain: isCurrentNodeMain,
-			MainIpAddress:     "172.20.0.2",
-			MainPort:          8081, // TODO int parse strings.Split(mainExecutor, ":")[1],
+			MainIpAddress:     "172.20.0.2", // TODO
+			MainPort:          8081,         // TODO int parse strings.Split(mainExecutor, ":")[1],
 			ExecutorsCount:    executorsCount,
 		},
 	}
@@ -155,7 +155,7 @@ func (ec *ExecutorsClient) readResponseFromMainExecutor(data []byte) (HttpResult
 	}
 
 	httpResult := HttpResult{
-		Response: queryResponse,
+		Response: queryResponse, // TODO
 	}
 
 	return httpResult, nil

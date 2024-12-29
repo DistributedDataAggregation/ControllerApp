@@ -1,10 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
-	"fmt"
+
 	"github.com/joho/godotenv"
 )
 
@@ -38,7 +39,7 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
-		ExecutorAddresses: executorAddresses,	
+		ExecutorAddresses: executorAddresses,
 		ControllerPort:    controllerPort,
 		DataPath:          dataPath,
 	}, nil
