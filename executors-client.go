@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,43 +15,56 @@ import (
 )
 
 type ExecutorsClient struct {
-	MainIdx int
-	Sockets []net.Conn
+	MainIdx   int
+	Sockets   []net.Conn
+	Addresses []string
 }
 
 func NewExecutorsClient() *ExecutorsClient {
-	return &ExecutorsClient{MainIdx: 0, Sockets: OpenSockets(config.ExecutorAddresses)}
+	sockets, addresses := OpenSockets(config.ExecutorAddresses, config.MainExecutorIdx)
+	return &ExecutorsClient{MainIdx: 0, Sockets: sockets, Addresses: addresses}
 }
 
-func OpenSockets(executors []string) []net.Conn {
+func OpenSockets(executors []string, mainIdx int) ([]net.Conn, []string) {
 	sockets := []net.Conn{}
-	for _, executor := range executors {
-		var conn net.Conn
-		var err error
-		const maxRetries = 10
-		baseDelay := time.Second // Base delay for retries
-
-		for retries := 0; retries < maxRetries; retries++ {
-			conn, err = net.Dial("tcp", executor)
-			if err == nil {
-				break
-			}
-
-			// Calculate exponential backoff
-			backoff := baseDelay * (1 << retries) // 1, 2, 4, 8, 16 seconds
-			log.Printf("Retrying to connect to %v after %v... (%d/%d)", executor, backoff, retries+1, maxRetries)
-			time.Sleep(backoff)
+	addresses := []string{}
+	sockets = append(sockets, OpenSocket(executors[mainIdx]))
+	addresses = append(addresses, executors[mainIdx])
+	for i, executor := range executors {
+		if i != mainIdx {
+			sockets = append(sockets, OpenSocket(executor))
+			addresses = append(addresses, executor)
 		}
-
-		if err != nil {
-			log.Panicf("Failed to dial connect to %v after %d retries: %v", executor, maxRetries, err)
-		}
-		sockets = append(sockets, conn)
 	}
-	return sockets
+	return sockets, addresses
 }
 
-func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQueryRequest, mainExecutor string, isCurrentNodeMain bool, executorsCount int32) *protomodels.QueryRequest {
+func OpenSocket(executor string) net.Conn {
+
+	var conn net.Conn
+	var err error
+	const maxRetries = 10
+	baseDelay := time.Second // Base delay for retries
+
+	for retries := 0; retries < maxRetries; retries++ {
+		conn, err = net.Dial("tcp", executor)
+		if err == nil {
+			break
+		}
+
+		// Calculate exponential backoff
+		backoff := baseDelay * (1 << retries) // 1, 2, 4, 8, 16 seconds
+		log.Printf("Retrying to connect to %v after %v... (%d/%d)", executor, backoff, retries+1, maxRetries)
+		time.Sleep(backoff)
+	}
+
+	if err != nil {
+		log.Panicf("Failed to dial connect to %v after %d retries: %v", executor, maxRetries, err)
+	}
+	return conn
+}
+
+func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQueryRequest, mainExecutor string, mainExecutorPort int32, isCurrentNodeMain bool, executorsCount int32) *protomodels.QueryRequest {
 	selects := make([]*protomodels.Select, len(queryReq.SelectColumns))
 	for i, sel := range queryReq.SelectColumns {
 		selects[i] = &protomodels.Select{
@@ -65,8 +79,8 @@ func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQuery
 		Select:       selects,
 		Executor: &protomodels.ExecutorInformation{
 			IsCurrentNodeMain: isCurrentNodeMain,
-			MainIpAddress:     "172.20.0.2", // TODO
-			MainPort:          8081,         // TODO int parse strings.Split(mainExecutor, ":")[1],
+			MainIpAddress:     strings.Split(mainExecutor, ":")[0],
+			MainPort:          mainExecutorPort,
 			ExecutorsCount:    executorsCount,
 		},
 	}
@@ -78,7 +92,7 @@ func (ec *ExecutorsClient) sendTaskToExecutor(files []string, executorIdx int, e
 		defer wg.Done()
 	}
 
-	queryRequest := ec.createProtoRequest(files, queryReq, config.ExecutorAddresses[ec.MainIdx], executorIdx == ec.MainIdx, executorsCount)
+	queryRequest := ec.createProtoRequest(files, queryReq, ec.Addresses[ec.MainIdx], config.ExecutorsPort, executorIdx == ec.MainIdx, executorsCount)
 
 	err := ec.sendRequest(queryRequest, ec.Sockets[executorIdx])
 
@@ -88,6 +102,31 @@ func (ec *ExecutorsClient) sendTaskToExecutor(files []string, executorIdx int, e
 	}
 
 	return nil
+}
+
+func (ec *ExecutorsClient) printProtoRequest(queryReq *protomodels.QueryRequest, adress net.Addr) {
+	log.Printf("Sent request to %s\n", adress)
+	log.Printf("Files:\n")
+	for _, file := range queryReq.FilesNames {
+		log.Printf("	%s, \n", file)
+	}
+
+	log.Printf("Grouping columns:\n")
+	for _, col := range queryReq.Select {
+		log.Printf("	%s, \n", col)
+	}
+
+	log.Printf("Select:\n")
+	for _, sel := range queryReq.Select {
+		log.Printf("	Column %s, Function %s,\n", sel.Column, sel.Function)
+	}
+
+	log.Printf("Main executor:\n")
+	log.Printf("	Is main: %t", queryReq.Executor.IsCurrentNodeMain)
+	log.Printf("	Main ip address: %s", queryReq.Executor.MainIpAddress)
+	log.Printf("	Main port: %d", queryReq.Executor.MainPort)
+	log.Printf("	Executors count: %d", queryReq.Executor.ExecutorsCount)
+
 }
 
 func (ec *ExecutorsClient) sendRequest(queryRequest *protomodels.QueryRequest, conn net.Conn) error {

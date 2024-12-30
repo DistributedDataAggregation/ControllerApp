@@ -29,7 +29,7 @@ func main() {
 	scheduler := NewQueriesScheduler(processor)
 	queryHandler := NewQueryHandler(scheduler)
 
-	docs.SwaggerInfo.Host = "localhost" + config.ControllerPort
+	docs.SwaggerInfo.Host = config.SwaggerHost
 	http.HandleFunc("/api/v1/query", queryHandler.handleQuery)
 	http.Handle("/swagger/", httpSwagger.WrapHandler)
 

@@ -24,7 +24,7 @@ func (p *Processor) processRequest(queryReq HttpQueryRequest) (HttpResult, error
 		return HttpResult{Response: protomodels.QueryResponse{Error: &protomodels.Error{Message: "could not find files"}}}, nil
 	}
 
-	filesPerExecutorIdx, executorsIdxs := p.Planner.distributeFiles(files, config.ExecutorAddresses)
+	filesPerExecutorIdx, executorsIdxs := p.Planner.distributeFiles(files, p.ExecutorsClient.Addresses)
 
 	return p.sendToExecutors(filesPerExecutorIdx, executorsIdxs, queryReq)
 }
