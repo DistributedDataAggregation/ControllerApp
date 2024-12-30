@@ -84,7 +84,7 @@ func (h *QueryHandler) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	h.Scheduler.AddQuery(queueReq)
 
-	result, err := <-queueReq.ResultChan, <-queueReq.ErrorChan
+	result, err := <-queueReq.ResultChan, <-queueReq.ErrorChan // TODO ErrorChan
 
 	if err != nil {
 		log.Printf("Error processing request %v", err)
