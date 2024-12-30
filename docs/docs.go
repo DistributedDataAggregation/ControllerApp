@@ -105,6 +105,17 @@ const docTemplate = `{
                 }
             }
         },
+        "protomodels.Error": {
+            "type": "object",
+            "properties": {
+                "inner_message": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "protomodels.PartialResult": {
             "type": "object",
             "properties": {
@@ -119,6 +130,9 @@ const docTemplate = `{
         "protomodels.QueryResponse": {
             "type": "object",
             "properties": {
+                "error": {
+                    "$ref": "#/definitions/protomodels.Error"
+                },
                 "values": {
                     "type": "array",
                     "items": {
