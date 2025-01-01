@@ -1,7 +1,6 @@
 package main
 
 import (
-	"controller/protomodels"
 	"log"
 	"path/filepath"
 	"sync"
@@ -21,7 +20,7 @@ func (p *Processor) processRequest(queryReq HttpQueryRequest) (HttpResult, error
 	files, err := p.findDataFiles(queryReq.TableName)
 	if err != nil || len(files) == 0 {
 		log.Printf("Could not find files %v", err)
-		return HttpResult{Response: protomodels.QueryResponse{Error: &protomodels.Error{Message: "could not find files"}}}, nil
+		return HttpResult{Response: HttpQueryResponse{Error: &HttpError{Message: "could not find files"}}}, nil
 	}
 
 	filesPerExecutorIdx, executorsIdxs := p.Planner.distributeFiles(files, p.ExecutorsClient.Addresses)

@@ -1,5 +1,19 @@
 basePath: /api/v1
 definitions:
+  main.HttpError:
+    properties:
+      inner_message:
+        type: string
+      message:
+        type: string
+    type: object
+  main.HttpPartialResult:
+    properties:
+      count:
+        type: integer
+      value:
+        type: integer
+    type: object
   main.HttpQueryRequest:
     properties:
       group_columns:
@@ -13,12 +27,21 @@ definitions:
       table_name:
         type: string
     type: object
+  main.HttpQueryResponse:
+    properties:
+      error:
+        $ref: '#/definitions/main.HttpError'
+      values:
+        items:
+          $ref: '#/definitions/main.HttpValue'
+        type: array
+    type: object
   main.HttpResult:
     properties:
       processing_time:
         type: integer
       result:
-        $ref: '#/definitions/protomodels.QueryResponse'
+        $ref: '#/definitions/main.HttpQueryResponse'
     type: object
   main.HttpSelect:
     properties:
@@ -27,36 +50,13 @@ definitions:
       function:
         type: string
     type: object
-  protomodels.Error:
-    properties:
-      inner_message:
-        type: string
-      message:
-        type: string
-    type: object
-  protomodels.PartialResult:
-    properties:
-      count:
-        type: integer
-      value:
-        type: integer
-    type: object
-  protomodels.QueryResponse:
-    properties:
-      error:
-        $ref: '#/definitions/protomodels.Error'
-      values:
-        items:
-          $ref: '#/definitions/protomodels.Value'
-        type: array
-    type: object
-  protomodels.Value:
+  main.HttpValue:
     properties:
       grouping_value:
         type: string
       results:
         items:
-          $ref: '#/definitions/protomodels.PartialResult'
+          $ref: '#/definitions/main.HttpPartialResult'
         type: array
     type: object
 externalDocs:
@@ -94,7 +94,7 @@ paths:
           description: Internal server error
           schema:
             type: string
-      summary: Query data from table
+      summary: Query data from a table
       tags:
       - query
 swagger: "2.0"

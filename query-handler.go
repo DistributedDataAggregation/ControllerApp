@@ -1,7 +1,6 @@
 package main
 
 import (
-	"controller/protomodels"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -41,9 +40,29 @@ type HttpSelect struct {
 	Function string `json:"function"`
 }
 
+type HttpError struct {
+	Message      string `json:"message"`
+	InnerMessage string `json:"inner_message"`
+}
+
+type HttpPartialResult struct {
+	Value int64 `json:"value"`
+	Count int64 `json:"count"`
+}
+
+type HttpValue struct {
+	GroupingValue string              `json:"grouping_value"`
+	Results       []HttpPartialResult `json:"results"`
+}
+
+type HttpQueryResponse struct {
+	Error  *HttpError   `json:"error"`
+	Values []*HttpValue `json:"values"`
+}
+
 type HttpResult struct {
-	Response protomodels.QueryResponse `json:"result"`
-	Time     int64                     `json:"processing_time"`
+	Response HttpQueryResponse `json:"result"`
+	Time     int64             `json:"processing_time"`
 }
 
 type QueryHandler struct {
@@ -54,7 +73,7 @@ func NewQueryHandler(scheduler *QueriesScheduler) *QueryHandler {
 	return &QueryHandler{Scheduler: *scheduler}
 }
 
-// @Summary Query data from table
+// @Summary Query data from a table
 // @Description Queries data with specified grouping and selection
 // @Tags query
 // @Accept  json

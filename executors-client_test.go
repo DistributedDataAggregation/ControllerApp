@@ -192,11 +192,11 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 				return data
 			}(),
 			expectedResult: HttpResult{
-				Response: protomodels.QueryResponse{
-					Values: []*protomodels.Value{
+				Response: HttpQueryResponse{
+					Values: []*HttpValue{
 						{
 							GroupingValue: "group1",
-							Results: []*protomodels.PartialResult{
+							Results: []HttpPartialResult{
 								{Value: 100, Count: 2},
 							},
 						},
@@ -232,8 +232,7 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 				return // Skip further checks if an error is expected
 			}
 
-			// Use proto.Equal for protobuf comparisons
-			if !proto.Equal(&result.Response, &tt.expectedResult.Response) {
+			if !reflect.DeepEqual(&result.Response, &tt.expectedResult.Response) {
 				t.Errorf("expected response: %v, got: %v", tt.expectedResult.Response, result.Response)
 			}
 		})

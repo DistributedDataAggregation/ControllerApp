@@ -15,14 +15,27 @@ import (
 )
 
 type ExecutorsClient struct {
-	MainIdx   int
-	Sockets   []net.Conn
-	Addresses []string
+	MainIdx        int
+	Sockets        []net.Conn
+	Addresses      []string
+	SocketStatuses []bool
+	Mutex          *sync.Mutex
 }
 
 func NewExecutorsClient() *ExecutorsClient {
 	sockets, addresses := OpenSockets(config.ExecutorAddresses, config.MainExecutorIdx)
-	return &ExecutorsClient{MainIdx: 0, Sockets: sockets, Addresses: addresses}
+	statuses := make([]bool, len(addresses))
+	for i := range statuses {
+		statuses[i] = sockets[i] != nil
+	}
+
+	return &ExecutorsClient{
+		MainIdx:        0,
+		Sockets:        sockets,
+		Addresses:      addresses,
+		SocketStatuses: statuses,
+		Mutex:          &sync.Mutex{},
+	}
 }
 
 func OpenSockets(executors []string, mainIdx int) ([]net.Conn, []string) {
@@ -37,6 +50,18 @@ func OpenSockets(executors []string, mainIdx int) ([]net.Conn, []string) {
 		}
 	}
 	return sockets, addresses
+}
+
+func (ec *ExecutorsClient) ReconnectExecutor(executorIdx int) {
+	ec.Mutex.Lock()
+	defer ec.Mutex.Unlock()
+
+	if !ec.SocketStatuses[executorIdx] {
+		conn := OpenSocket(ec.Addresses[executorIdx])
+		ec.Sockets[executorIdx] = conn
+		ec.SocketStatuses[executorIdx] = true
+		log.Printf("Reconnected to executor %s", ec.Addresses[executorIdx])
+	}
 }
 
 func OpenSocket(executor string) net.Conn {
@@ -62,6 +87,18 @@ func OpenSocket(executor string) net.Conn {
 		log.Panicf("Failed to dial connect to %v after %d retries: %v", executor, maxRetries, err)
 	}
 	return conn
+}
+
+func (ec *ExecutorsClient) AllExecutorsConnected() bool {
+	ec.Mutex.Lock()
+	defer ec.Mutex.Unlock()
+
+	for _, status := range ec.SocketStatuses {
+		if !status {
+			return false
+		}
+	}
+	return true
 }
 
 func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQueryRequest, mainExecutor string, mainExecutorPort int32, isCurrentNodeMain bool, executorsCount int32) *protomodels.QueryRequest {
@@ -94,7 +131,7 @@ func (ec *ExecutorsClient) sendTaskToExecutor(files []string, executorIdx int, e
 
 	queryRequest := ec.createProtoRequest(files, queryReq, ec.Addresses[ec.MainIdx], config.ExecutorsPort, executorIdx == ec.MainIdx, executorsCount)
 
-	err := ec.sendRequest(queryRequest, ec.Sockets[executorIdx])
+	err := ec.sendRequest(queryRequest, executorIdx)
 
 	if err != nil {
 		log.Printf("Error sending request to executor %s: %v", ec.Sockets[executorIdx], err)
@@ -129,7 +166,7 @@ func (ec *ExecutorsClient) printProtoRequest(queryReq *protomodels.QueryRequest,
 
 }
 
-func (ec *ExecutorsClient) sendRequest(queryRequest *protomodels.QueryRequest, conn net.Conn) error {
+func (ec *ExecutorsClient) sendRequest(queryRequest *protomodels.QueryRequest, executorIdx int) error {
 
 	size := proto.Size(queryRequest)
 	sizeBytes := make([]byte, 4)
@@ -137,47 +174,68 @@ func (ec *ExecutorsClient) sendRequest(queryRequest *protomodels.QueryRequest, c
 
 	data, err := proto.Marshal(queryRequest)
 	if err != nil {
-		conn.Close()
 		log.Printf("Marshal error: %v", err)
 		return err
 	}
 
-	_, err = conn.Write(sizeBytes)
+	err = ec.connWrite(sizeBytes, executorIdx)
 	if err != nil {
-		conn.Close()
-		log.Printf("Error writing data to connection with %s: %v", conn.RemoteAddr(), err)
 		return err
 	}
 
-	_, err = conn.Write(data)
+	err = ec.connWrite(data, executorIdx)
+
+	return err
+}
+
+func (ec *ExecutorsClient) connWrite(data []byte, executorIdx int) error {
+	conn := ec.Sockets[executorIdx]
+	_, err := conn.Write(data)
 	if err != nil {
 		conn.Close()
-		log.Printf("Error writing data to connection with %s: %v", conn.RemoteAddr(), err)
+		log.Printf("Error writing data to connection with %s: %v", ec.Addresses[executorIdx], err)
+		ec.Mutex.Lock()
+		ec.SocketStatuses[executorIdx] = false
+		ec.Mutex.Unlock()
+		go ec.ReconnectExecutor(executorIdx)
 		return err
 	}
-
 	return nil
 }
 
 func (ec *ExecutorsClient) receiveResponseFromMainExecutor() (HttpResult, error) {
-	conn := ec.Sockets[ec.MainIdx]
 
 	sizeBytes := make([]byte, 4)
-	_, err := conn.Read(sizeBytes)
+	err := ec.connRead(&sizeBytes, ec.MainIdx)
 	if err != nil {
-		log.Printf("Error reading size from connection with main executor: %v", err)
+
 		return HttpResult{}, err
 	}
 	messageSize := binary.BigEndian.Uint32(sizeBytes)
 
 	data := make([]byte, messageSize)
-	_, err = conn.Read(data)
+	err = ec.connRead(&data, ec.MainIdx)
 	if err != nil {
-		log.Printf("Error reading data from connection with main executor: %v", err)
+
 		return HttpResult{}, err
 	}
 
 	return ec.readResponseFromMainExecutor(data)
+}
+
+func (ec *ExecutorsClient) connRead(data *[]byte, executorIdx int) error {
+	conn := ec.Sockets[executorIdx]
+	_, err := conn.Read(*data)
+	if err != nil {
+		conn.Close()
+		log.Printf("Error reading data from connection with %s: %v", ec.Addresses[executorIdx], err)
+		ec.Mutex.Lock()
+		ec.SocketStatuses[executorIdx] = false
+		ec.Mutex.Unlock()
+		go ec.ReconnectExecutor(executorIdx)
+		return err
+	}
+	return nil
 }
 
 func (ec *ExecutorsClient) readResponseFromMainExecutor(data []byte) (HttpResult, error) {
@@ -194,8 +252,50 @@ func (ec *ExecutorsClient) readResponseFromMainExecutor(data []byte) (HttpResult
 	}
 
 	httpResult := HttpResult{
-		Response: queryResponse, // TODO
+		Response: ec.mapQueryResponse(&queryResponse),
 	}
 
 	return httpResult, nil
+}
+
+func (ec *ExecutorsClient) mapQueryResponse(src *protomodels.QueryResponse) HttpQueryResponse {
+	if src == nil {
+		return HttpQueryResponse{}
+	}
+
+	var httpError *HttpError
+	if src.Error != nil {
+		httpError = &HttpError{
+			Message:      src.Error.Message,
+			InnerMessage: src.Error.InnerMessage,
+		}
+	}
+
+	httpValues := make([]*HttpValue, len(src.Values))
+	for i, value := range src.Values {
+		if value != nil {
+			httpValues[i] = &HttpValue{
+				GroupingValue: value.GroupingValue,
+				Results:       ec.mapPartialResults(value.Results),
+			}
+		}
+	}
+
+	return HttpQueryResponse{
+		Error:  httpError,
+		Values: httpValues,
+	}
+}
+
+func (ec *ExecutorsClient) mapPartialResults(results []*protomodels.PartialResult) []HttpPartialResult {
+	httpResults := make([]HttpPartialResult, len(results))
+	for i, result := range results {
+		if result != nil {
+			httpResults[i] = HttpPartialResult{
+				Value: result.Value,
+				Count: result.Count,
+			}
+		}
+	}
+	return httpResults
 }
