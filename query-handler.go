@@ -9,25 +9,21 @@ import (
 	"github.com/beevik/guid"
 )
 
-// type Aggregate int
+type HttpAggregateFunction string
 
-// const (
-// 	AggregateMinimum Aggregate = iota
-// 	AggregateMaximum
-// 	AggregateAverage
-// 	AggregateMedian
-// )
+const (
+	Minimum HttpAggregateFunction = "Minimum"
+	Maximum HttpAggregateFunction = "Maximum"
+	Average HttpAggregateFunction = "Average"
+)
 
-// var aggregateName = map[Aggregate]string{
-// 	AggregateMinimum: "minimum",
-// 	AggregateMaximum: "maximum",
-// 	AggregateAverage: "average",
-// 	AggregateMedian:  "median",
-// }
-
-// func (a Aggregate) String() string {
-// 	return aggregateName[a]
-// }
+func (h HttpAggregateFunction) IsValid() bool {
+	switch h {
+	case Minimum, Maximum, Average:
+		return true
+	}
+	return false
+}
 
 type HttpQueryRequest struct {
 	TableName     string       `json:"table_name"`
@@ -36,8 +32,8 @@ type HttpQueryRequest struct {
 }
 
 type HttpSelect struct {
-	Column   string `json:"column"`
-	Function string `json:"function"`
+	Column   string                `json:"column"`
+	Function HttpAggregateFunction `json:"function"`
 }
 
 type HttpError struct {
@@ -98,21 +94,18 @@ func (h *QueryHandler) handleQuery(w http.ResponseWriter, r *http.Request) {
 		Guid:       guid.New(),
 		Request:    queryReq,
 		ResultChan: make(chan HttpResult),
-		ErrorChan:  make(chan error),
 	}
 
 	h.Scheduler.AddQuery(queueReq)
 
-	result, err := <-queueReq.ResultChan, <-queueReq.ErrorChan // TODO ErrorChan
-
-	if err != nil {
-		log.Printf("Error processing request %v", err)
-		http.Error(w, "Error processing request", http.StatusInternalServerError)
-		return
-	}
+	result := <-queueReq.ResultChan
 
 	result.Time = time.Since(start).Milliseconds()
 
-	w.WriteHeader(http.StatusOK)
+	if result.Response.Error == nil {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	json.NewEncoder(w).Encode(result)
 }

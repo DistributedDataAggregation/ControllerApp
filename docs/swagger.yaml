@@ -1,5 +1,15 @@
 basePath: /api/v1
 definitions:
+  main.HttpAggregateFunction:
+    enum:
+    - Minimum
+    - Maximum
+    - Average
+    type: string
+    x-enum-varnames:
+    - Minimum
+    - Maximum
+    - Average
   main.HttpError:
     properties:
       inner_message:
@@ -48,7 +58,7 @@ definitions:
       column:
         type: string
       function:
-        type: string
+        $ref: '#/definitions/main.HttpAggregateFunction'
     type: object
   main.HttpValue:
     properties:

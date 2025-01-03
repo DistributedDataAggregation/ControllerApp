@@ -63,6 +63,19 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "main.HttpAggregateFunction": {
+            "type": "string",
+            "enum": [
+                "Minimum",
+                "Maximum",
+                "Average"
+            ],
+            "x-enum-varnames": [
+                "Minimum",
+                "Maximum",
+                "Average"
+            ]
+        },
         "main.HttpError": {
             "type": "object",
             "properties": {
@@ -137,7 +150,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "function": {
-                    "type": "string"
+                    "$ref": "#/definitions/main.HttpAggregateFunction"
                 }
             }
         },

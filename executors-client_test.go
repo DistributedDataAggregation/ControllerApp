@@ -11,6 +11,7 @@ import (
 
 func TestCreateProtoRequest(t *testing.T) {
 	tests := []struct {
+		guid              string
 		name              string
 		files             []string
 		queryReq          HttpQueryRequest
@@ -21,6 +22,7 @@ func TestCreateProtoRequest(t *testing.T) {
 		expected          *protomodels.QueryRequest
 	}{
 		{
+			guid:  "guid",
 			name:  "basic test",
 			files: []string{"file1", "file2"},
 			queryReq: HttpQueryRequest{
@@ -36,6 +38,7 @@ func TestCreateProtoRequest(t *testing.T) {
 			isCurrentNodeMain: true,
 			executorsCount:    3,
 			expected: &protomodels.QueryRequest{
+				Guid:         "guid",
 				FilesNames:   []string{"file1", "file2"},
 				GroupColumns: []string{"col1", "col2"},
 				Select: []*protomodels.Select{
@@ -51,6 +54,7 @@ func TestCreateProtoRequest(t *testing.T) {
 			},
 		},
 		{
+			guid:  "guid",
 			name:  "no files",
 			files: []string{},
 			queryReq: HttpQueryRequest{
@@ -65,6 +69,7 @@ func TestCreateProtoRequest(t *testing.T) {
 			isCurrentNodeMain: false,
 			executorsCount:    1,
 			expected: &protomodels.QueryRequest{
+				Guid:         "guid",
 				FilesNames:   []string{},
 				GroupColumns: []string{},
 				Select: []*protomodels.Select{
@@ -79,13 +84,14 @@ func TestCreateProtoRequest(t *testing.T) {
 			},
 		},
 		{
+			guid:  "guid",
 			name:  "multiple executors",
 			files: []string{"file1", "file2", "file3"},
 			queryReq: HttpQueryRequest{
 				TableName:    "multi_exec_table",
 				GroupColumns: []string{"group_col1"},
 				SelectColumns: []HttpSelect{
-					{Column: "metric", Function: "Median"},
+					{Column: "metric", Function: "Minimum"},
 				},
 			},
 			mainExecutor:      "172.20.1.1:8080",
@@ -93,10 +99,11 @@ func TestCreateProtoRequest(t *testing.T) {
 			isCurrentNodeMain: true,
 			executorsCount:    5,
 			expected: &protomodels.QueryRequest{
+				Guid:         "guid",
 				FilesNames:   []string{"file1", "file2", "file3"},
 				GroupColumns: []string{"group_col1"},
 				Select: []*protomodels.Select{
-					{Column: "metric", Function: protomodels.Aggregate(protomodels.Aggregate_value["Median"])},
+					{Column: "metric", Function: protomodels.Aggregate(protomodels.Aggregate_value["Minimum"])},
 				},
 				Executor: &protomodels.ExecutorInformation{
 					IsCurrentNodeMain: true,
@@ -107,6 +114,7 @@ func TestCreateProtoRequest(t *testing.T) {
 			},
 		},
 		{
+			guid:  "guid",
 			name:  "no select columns",
 			files: []string{"file1"},
 			queryReq: HttpQueryRequest{
@@ -119,6 +127,7 @@ func TestCreateProtoRequest(t *testing.T) {
 			isCurrentNodeMain: false,
 			executorsCount:    2,
 			expected: &protomodels.QueryRequest{
+				Guid:         "guid",
 				FilesNames:   []string{"file1"},
 				GroupColumns: []string{"col1"},
 				Select:       []*protomodels.Select{},
@@ -131,6 +140,7 @@ func TestCreateProtoRequest(t *testing.T) {
 			},
 		},
 		{
+			guid:  "guid",
 			name:  "empty group and select",
 			files: []string{"fileA", "fileB"},
 			queryReq: HttpQueryRequest{
@@ -143,6 +153,7 @@ func TestCreateProtoRequest(t *testing.T) {
 			isCurrentNodeMain: true,
 			executorsCount:    4,
 			expected: &protomodels.QueryRequest{
+				Guid:         "guid",
 				FilesNames:   []string{"fileA", "fileB"},
 				GroupColumns: []string{},
 				Select:       []*protomodels.Select{},
@@ -159,7 +170,7 @@ func TestCreateProtoRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := &ExecutorsClient{}
-			result := client.createProtoRequest(tt.files, tt.queryReq, tt.mainExecutor, tt.mainExecutorPort, tt.isCurrentNodeMain, tt.executorsCount)
+			result, _ := client.createProtoRequest(tt.guid, tt.files, tt.queryReq, tt.mainExecutor, tt.mainExecutorPort, tt.isCurrentNodeMain, tt.executorsCount)
 
 			if !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("expected %v, got %v", tt.expected, result)
@@ -171,14 +182,17 @@ func TestCreateProtoRequest(t *testing.T) {
 func TestReadResponseFromMainExecutor(t *testing.T) {
 	tests := []struct {
 		name           string
+		guid           string
 		data           []byte
 		expectedResult HttpResult
 		expectedError  bool
 	}{
 		{
 			name: "valid response",
+			guid: "guid",
 			data: func() []byte {
 				queryResponse := &protomodels.QueryResponse{
+					Guid: "guid",
 					Values: []*protomodels.Value{
 						{
 							GroupingValue: "group1",
@@ -207,12 +221,14 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 		},
 		{
 			name:           "invalid data",
+			guid:           "guid",
 			data:           []byte("invalid protobuf data"),
 			expectedResult: HttpResult{},
 			expectedError:  true,
 		},
 		{
 			name:           "empty data",
+			guid:           "guid",
 			data:           []byte{},
 			expectedResult: HttpResult{},
 			expectedError:  true,
@@ -222,7 +238,7 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := &ExecutorsClient{}
-			result, err := client.readResponseFromMainExecutor(tt.data)
+			result, receivedGuid, err := client.readResponseFromMainExecutor(tt.data)
 
 			if (err != nil) != tt.expectedError {
 				t.Errorf("expected error: %v, got: %v", tt.expectedError, err)
@@ -230,6 +246,11 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 
 			if tt.expectedError {
 				return // Skip further checks if an error is expected
+			}
+
+			if receivedGuid != tt.guid {
+				t.Errorf("expected guid: %s, got: %s", tt.guid, receivedGuid)
+
 			}
 
 			if !reflect.DeepEqual(&result.Response, &tt.expectedResult.Response) {

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"strings"
@@ -13,6 +14,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 )
+
+const maxRetries = 10
 
 type ExecutorsClient struct {
 	MainIdx        int
@@ -68,7 +71,7 @@ func OpenSocket(executor string) net.Conn {
 
 	var conn net.Conn
 	var err error
-	const maxRetries = 10
+
 	baseDelay := time.Second // Base delay for retries
 
 	for retries := 0; retries < maxRetries; retries++ {
@@ -89,7 +92,7 @@ func OpenSocket(executor string) net.Conn {
 	return conn
 }
 
-func (ec *ExecutorsClient) AllExecutorsConnected() bool {
+func (ec *ExecutorsClient) allExecutorsConnected() bool {
 	ec.Mutex.Lock()
 	defer ec.Mutex.Unlock()
 
@@ -101,16 +104,24 @@ func (ec *ExecutorsClient) AllExecutorsConnected() bool {
 	return true
 }
 
-func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQueryRequest, mainExecutor string, mainExecutorPort int32, isCurrentNodeMain bool, executorsCount int32) *protomodels.QueryRequest {
+func (ec *ExecutorsClient) createProtoRequest(guid string, files []string, queryReq HttpQueryRequest, mainExecutor string, mainExecutorPort int32,
+	isCurrentNodeMain bool, executorsCount int32) (*protomodels.QueryRequest, error) {
 	selects := make([]*protomodels.Select, len(queryReq.SelectColumns))
 	for i, sel := range queryReq.SelectColumns {
+
+		if !sel.Function.IsValid() {
+			log.Printf("Invalid aggreage function %s. Supported aggregate functions: Minimum, Maximum, Average", string(sel.Function))
+			return nil, fmt.Errorf("invalid aggreage function %s, supported aggregate functions: Minimum, Maximum, Average", string(sel.Function))
+		}
+
 		selects[i] = &protomodels.Select{
 			Column:   sel.Column,
-			Function: protomodels.Aggregate(protomodels.Aggregate_value[sel.Function]), // TODO handle unsupported aggregate (now it returns default Minimum)
+			Function: protomodels.Aggregate(protomodels.Aggregate_value[string(sel.Function)]),
 		}
 	}
 
 	return &protomodels.QueryRequest{
+		Guid:         guid,
 		FilesNames:   files,
 		GroupColumns: queryReq.GroupColumns,
 		Select:       selects,
@@ -120,19 +131,17 @@ func (ec *ExecutorsClient) createProtoRequest(files []string, queryReq HttpQuery
 			MainPort:          mainExecutorPort,
 			ExecutorsCount:    executorsCount,
 		},
-	}
+	}, nil
 }
 
-func (ec *ExecutorsClient) sendTaskToExecutor(files []string, executorIdx int, executorsCount int32, queryReq HttpQueryRequest, wg *sync.WaitGroup) error {
+func (ec *ExecutorsClient) sendTaskToExecutor(guid string, files []string, executorIdx int, executorsCount int32, queryReq HttpQueryRequest) error {
 
-	if wg != nil {
-		defer wg.Done()
+	queryRequest, err := ec.createProtoRequest(guid, files, queryReq, ec.Addresses[ec.MainIdx], config.ExecutorsPort, executorIdx == ec.MainIdx, executorsCount)
+	if err != nil {
+		return err
 	}
 
-	queryRequest := ec.createProtoRequest(files, queryReq, ec.Addresses[ec.MainIdx], config.ExecutorsPort, executorIdx == ec.MainIdx, executorsCount)
-
-	err := ec.sendRequest(queryRequest, executorIdx)
-
+	err = ec.sendRequest(queryRequest, executorIdx)
 	if err != nil {
 		log.Printf("Error sending request to executor %s: %v", ec.Sockets[executorIdx], err)
 		return err
@@ -203,29 +212,40 @@ func (ec *ExecutorsClient) connWrite(data []byte, executorIdx int) error {
 	return nil
 }
 
-func (ec *ExecutorsClient) receiveResponseFromMainExecutor() (HttpResult, error) {
+func (ec *ExecutorsClient) receiveResponseFromMainExecutor(guid string) (HttpResult, error) {
 
-	sizeBytes := make([]byte, 4)
-	err := ec.connRead(&sizeBytes, ec.MainIdx)
-	if err != nil {
+	for i := 0; i < maxRetries; i++ {
 
-		return HttpResult{}, err
+		sizeBytes, err := ec.connRead(4, ec.MainIdx)
+		if err != nil {
+			return HttpResult{}, err
+		}
+		messageSize := binary.BigEndian.Uint32(sizeBytes)
+
+		data, err := ec.connRead(int(messageSize), ec.MainIdx)
+		if err != nil {
+			return HttpResult{}, err
+		}
+
+		response, receivedGuid, err := ec.readResponseFromMainExecutor(data)
+
+		if err != nil {
+			return HttpResult{}, err
+		}
+
+		if guid == receivedGuid {
+			return response, nil
+		}
+
 	}
-	messageSize := binary.BigEndian.Uint32(sizeBytes)
 
-	data := make([]byte, messageSize)
-	err = ec.connRead(&data, ec.MainIdx)
-	if err != nil {
-
-		return HttpResult{}, err
-	}
-
-	return ec.readResponseFromMainExecutor(data)
+	return HttpResult{}, fmt.Errorf("failed to receive response from %s after %d retries", ec.Addresses[ec.MainIdx], maxRetries)
 }
 
-func (ec *ExecutorsClient) connRead(data *[]byte, executorIdx int) error {
+func (ec *ExecutorsClient) connRead(size int, executorIdx int) ([]byte, error) {
 	conn := ec.Sockets[executorIdx]
-	_, err := conn.Read(*data)
+	data := make([]byte, size)
+	_, err := io.ReadFull(conn, data)
 	if err != nil {
 		conn.Close()
 		log.Printf("Error reading data from connection with %s: %v", ec.Addresses[executorIdx], err)
@@ -233,29 +253,29 @@ func (ec *ExecutorsClient) connRead(data *[]byte, executorIdx int) error {
 		ec.SocketStatuses[executorIdx] = false
 		ec.Mutex.Unlock()
 		go ec.ReconnectExecutor(executorIdx)
-		return err
+		return []byte{}, err
 	}
-	return nil
+	return data, nil
 }
 
-func (ec *ExecutorsClient) readResponseFromMainExecutor(data []byte) (HttpResult, error) {
+func (ec *ExecutorsClient) readResponseFromMainExecutor(data []byte) (HttpResult, string, error) {
 
 	if len(data) == 0 {
-		return HttpResult{}, fmt.Errorf("empty input data")
+		return HttpResult{}, "", fmt.Errorf("empty input data")
 	}
 
 	var queryResponse protomodels.QueryResponse
 	err := proto.Unmarshal(data, &queryResponse)
 	if err != nil {
-		log.Printf("Error unmarshalling QueryResult: %v", err)
-		return HttpResult{}, err
+		log.Printf("Error unmarshalling QueryResponse: %v", err)
+		return HttpResult{}, "", err
 	}
 
 	httpResult := HttpResult{
 		Response: ec.mapQueryResponse(&queryResponse),
 	}
 
-	return httpResult, nil
+	return httpResult, queryResponse.Guid, nil
 }
 
 func (ec *ExecutorsClient) mapQueryResponse(src *protomodels.QueryResponse) HttpQueryResponse {
