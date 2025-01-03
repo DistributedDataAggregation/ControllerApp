@@ -1,7 +1,6 @@
 package main
 
 import (
-	"controller/protomodels"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -10,25 +9,21 @@ import (
 	"github.com/beevik/guid"
 )
 
-// type Aggregate int
+type HttpAggregateFunction string
 
-// const (
-// 	AggregateMinimum Aggregate = iota
-// 	AggregateMaximum
-// 	AggregateAverage
-// 	AggregateMedian
-// )
+const (
+	Minimum HttpAggregateFunction = "Minimum"
+	Maximum HttpAggregateFunction = "Maximum"
+	Average HttpAggregateFunction = "Average"
+)
 
-// var aggregateName = map[Aggregate]string{
-// 	AggregateMinimum: "minimum",
-// 	AggregateMaximum: "maximum",
-// 	AggregateAverage: "average",
-// 	AggregateMedian:  "median",
-// }
-
-// func (a Aggregate) String() string {
-// 	return aggregateName[a]
-// }
+func (h HttpAggregateFunction) IsValid() bool {
+	switch h {
+	case Minimum, Maximum, Average:
+		return true
+	}
+	return false
+}
 
 type HttpQueryRequest struct {
 	TableName     string       `json:"table_name"`
@@ -37,13 +32,33 @@ type HttpQueryRequest struct {
 }
 
 type HttpSelect struct {
-	Column   string `json:"column"`
-	Function string `json:"function"`
+	Column   string                `json:"column"`
+	Function HttpAggregateFunction `json:"function"`
+}
+
+type HttpError struct {
+	Message      string `json:"message"`
+	InnerMessage string `json:"inner_message"`
+}
+
+type HttpPartialResult struct {
+	Value int64 `json:"value"`
+	Count int64 `json:"count"`
+}
+
+type HttpValue struct {
+	GroupingValue string              `json:"grouping_value"`
+	Results       []HttpPartialResult `json:"results"`
+}
+
+type HttpQueryResponse struct {
+	Error  *HttpError   `json:"error"`
+	Values []*HttpValue `json:"values"`
 }
 
 type HttpResult struct {
-	Response protomodels.QueryResponse `json:"result"`
-	Time     int64                     `json:"processing_time"`
+	Response HttpQueryResponse `json:"result"`
+	Time     int64             `json:"processing_time"`
 }
 
 type QueryHandler struct {
@@ -54,7 +69,7 @@ func NewQueryHandler(scheduler *QueriesScheduler) *QueryHandler {
 	return &QueryHandler{Scheduler: *scheduler}
 }
 
-// @Summary Query data from table
+// @Summary Query data from a table
 // @Description Queries data with specified grouping and selection
 // @Tags query
 // @Accept  json
@@ -79,21 +94,18 @@ func (h *QueryHandler) handleQuery(w http.ResponseWriter, r *http.Request) {
 		Guid:       guid.New(),
 		Request:    queryReq,
 		ResultChan: make(chan HttpResult),
-		ErrorChan:  make(chan error),
 	}
 
 	h.Scheduler.AddQuery(queueReq)
 
-	result, err := <-queueReq.ResultChan, <-queueReq.ErrorChan // TODO ErrorChan
-
-	if err != nil {
-		log.Printf("Error processing request %v", err)
-		http.Error(w, "Error processing request", http.StatusInternalServerError)
-		return
-	}
+	result := <-queueReq.ResultChan
 
 	result.Time = time.Since(start).Milliseconds()
 
-	w.WriteHeader(http.StatusOK)
+	if result.Response.Error == nil {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	json.NewEncoder(w).Encode(result)
 }

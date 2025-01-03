@@ -24,12 +24,13 @@ func main() {
 	}
 
 	executorsClient := NewExecutorsClient()
+	executorsClient.OpenSockets()
 	planner := NewPlanner()
 	processor := NewProcessor(planner, executorsClient)
 	scheduler := NewQueriesScheduler(processor)
 	queryHandler := NewQueryHandler(scheduler)
 
-	docs.SwaggerInfo.Host = "localhost" + config.ControllerPort
+	docs.SwaggerInfo.Host = config.SwaggerHost
 	http.HandleFunc("/api/v1/query", queryHandler.handleQuery)
 	http.Handle("/swagger/", httpSwagger.WrapHandler)
 
