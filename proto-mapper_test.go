@@ -169,8 +169,7 @@ func TestCreateProtoRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := &ExecutorsClient{}
-			result, _ := client.createProtoRequest(tt.guid, tt.files, tt.queryReq, tt.mainExecutor, tt.mainExecutorPort, tt.isCurrentNodeMain, tt.executorsCount)
+			result, _ := createProtoRequest(tt.guid, tt.files, tt.queryReq, tt.mainExecutor, tt.mainExecutorPort, tt.isCurrentNodeMain, tt.executorsCount)
 
 			if !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("expected %v, got %v", tt.expected, result)
@@ -237,8 +236,7 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := &ExecutorsClient{}
-			result, receivedGuid, err := client.readResponseFromMainExecutor(tt.data)
+			result, receivedGuid, err := readProtoResponse(tt.data)
 
 			if (err != nil) != tt.expectedError {
 				t.Errorf("expected error: %v, got: %v", tt.expectedError, err)
