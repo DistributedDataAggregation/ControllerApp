@@ -93,9 +93,6 @@ func OpenSocket(executor string) net.Conn {
 }
 
 func (ec *ExecutorsClient) allExecutorsConnected() bool {
-	ec.Mutex.Lock()
-	defer ec.Mutex.Unlock()
-
 	for _, status := range ec.SocketStatuses {
 		if !status {
 			return false
