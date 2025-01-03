@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func createProtoRequest(guid string, files []string, queryReq HttpQueryRequest, mainExecutor string, mainExecutorPort int32,
+func CreateProtoRequest(guid string, files []string, queryReq HttpQueryRequest, mainExecutor string, mainExecutorPort int32,
 	isCurrentNodeMain bool, executorsCount int32) (*protomodels.QueryRequest, error) {
 	selects := make([]*protomodels.Select, len(queryReq.SelectColumns))
 	for i, sel := range queryReq.SelectColumns {
@@ -40,7 +40,7 @@ func createProtoRequest(guid string, files []string, queryReq HttpQueryRequest, 
 	}, nil
 }
 
-func readProtoResponse(data []byte) (HttpResult, string, error) {
+func ReadProtoResponse(data []byte) (HttpResult, string, error) {
 
 	if len(data) == 0 {
 		return HttpResult{}, "", fmt.Errorf("empty input data")

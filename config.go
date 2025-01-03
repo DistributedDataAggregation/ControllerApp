@@ -62,6 +62,10 @@ func LoadConfig() (*Config, error) {
 		log.Printf("Error parsing main executor index string to int: %v", err)
 		return &Config{}, err
 	}
+	if idx >= len(executorAddresses) || idx < 0 {
+		log.Printf("Invalid index for main executor passed")
+		return &Config{}, fmt.Errorf("invalid index for main executor passed")
+	}
 
 	port, err := strconv.ParseInt(executorsPort, 10, 32)
 	if err != nil {

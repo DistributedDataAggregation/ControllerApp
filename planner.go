@@ -7,16 +7,16 @@ func NewPlanner() *Planner {
 	return &Planner{}
 }
 
-func (p *Planner) distributeFiles(files []string, executors []string) (map[int][]string, []int) {
+func (p *Planner) distributeFiles(files []string, executors []int) (map[int][]string, []int) {
 	filesPerExecutor := make(map[int][]string)
 	usedExecutors := []int{}
 
 	for i, file := range files {
-		executorIdx := i % len(executors)
-		filesPerExecutor[executorIdx] = append(filesPerExecutor[executorIdx], file)
+		idx := i % len(executors)
+		filesPerExecutor[executors[idx]] = append(filesPerExecutor[executors[idx]], file)
 
-		if len(filesPerExecutor[executorIdx]) == 1 {
-			usedExecutors = append(usedExecutors, executorIdx)
+		if len(filesPerExecutor[executors[idx]]) == 1 {
+			usedExecutors = append(usedExecutors, executors[idx])
 		}
 	}
 	return filesPerExecutor, usedExecutors

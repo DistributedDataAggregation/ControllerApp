@@ -15,15 +15,17 @@ func NewProcessor(planner *Planner, executorsClient *ExecutorsClient) *Processor
 	return &Processor{Planner: *planner, ExecutorsClient: *executorsClient}
 }
 
-func (p *Processor) processRequest(guid string, queryReq HttpQueryRequest) HttpResult {
+func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) HttpResult {
 
-	if !p.ExecutorsClient.allExecutorsConnected() {
-		log.Printf("Could not proccess request: Not all executors are connected")
+	availableIdxs, err := p.ExecutorsClient.GetAvailableExecutorIdxs()
+
+	if err != nil {
+		log.Printf("Could not proccess request: %s", err.Error())
 
 		return HttpResult{Response: HttpQueryResponse{
 			Error: &HttpError{
 				Message:      "Could not proccess request",
-				InnerMessage: "Not all executors are connected",
+				InnerMessage: err.Error(),
 			}}}
 	}
 
@@ -42,7 +44,7 @@ func (p *Processor) processRequest(guid string, queryReq HttpQueryRequest) HttpR
 			}}}
 	}
 
-	filesPerExecutorIdx, executorsIdxs := p.Planner.distributeFiles(files, p.ExecutorsClient.Addresses)
+	filesPerExecutorIdx, executorsIdxs := p.Planner.distributeFiles(files, availableIdxs)
 
 	result, err := p.sendToExecutors(guid, filesPerExecutorIdx, executorsIdxs, queryReq)
 	if err != nil {
@@ -67,9 +69,9 @@ func (p *Processor) findDataFiles(tableName string) ([]string, error) {
 
 func (p *Processor) sendToExecutors(guid string, filesPerExecutorIdx map[int][]string, executorsIdxs []int, queryReq HttpQueryRequest) (HttpResult, error) {
 
-	mainExecutorIdx := p.ExecutorsClient.MainIdx
+	mainExecutorIdx := *p.ExecutorsClient.MainIdx
 
-	err := p.ExecutorsClient.sendTaskToExecutor(guid, filesPerExecutorIdx[mainExecutorIdx], mainExecutorIdx, int32(len(executorsIdxs)), queryReq)
+	err := p.ExecutorsClient.SendTaskToExecutor(guid, filesPerExecutorIdx[mainExecutorIdx], mainExecutorIdx, int32(len(executorsIdxs)), queryReq)
 	if err != nil {
 		return HttpResult{}, err
 	}
@@ -82,7 +84,7 @@ func (p *Processor) sendToExecutors(guid string, filesPerExecutorIdx map[int][]s
 			wg.Add(1)
 			go func(executorIdx int) {
 				defer wg.Done()
-				err := p.ExecutorsClient.sendTaskToExecutor(
+				err := p.ExecutorsClient.SendTaskToExecutor(
 					guid,
 					filesPerExecutorIdx[executorIdx],
 					executorIdx,
@@ -105,7 +107,7 @@ func (p *Processor) sendToExecutors(guid string, filesPerExecutorIdx map[int][]s
 		}
 	}
 
-	response, err := p.ExecutorsClient.receiveResponseFromMainExecutor(guid)
+	response, err := p.ExecutorsClient.ReceiveResponseFromMainExecutor(guid)
 	if err != nil {
 		return HttpResult{}, err
 	}

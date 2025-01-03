@@ -24,6 +24,7 @@ func main() {
 	}
 
 	executorsClient := NewExecutorsClient()
+	executorsClient.OpenSockets()
 	planner := NewPlanner()
 	processor := NewProcessor(planner, executorsClient)
 	scheduler := NewQueriesScheduler(processor)

@@ -9,43 +9,43 @@ func TestDistributeFiles(t *testing.T) {
 	tests := []struct {
 		name       string
 		files      []string
-		executors  []string
+		executors  []int
 		expMapping map[int][]string
 		expUsed    []int
 	}{
 		{
 			name:      "even distribution",
 			files:     []string{"file1", "file2", "file3", "file4"},
-			executors: []string{"exec1", "exec2"},
+			executors: []int{3, 5},
 			expMapping: map[int][]string{
-				0: {"file1", "file3"},
-				1: {"file2", "file4"},
+				3: {"file1", "file3"},
+				5: {"file2", "file4"},
 			},
-			expUsed: []int{0, 1},
+			expUsed: []int{3, 5},
 		},
 		{
 			name:      "more executors than files",
 			files:     []string{"file1"},
-			executors: []string{"exec1", "exec2", "exec3"},
+			executors: []int{1, 2, 4},
 			expMapping: map[int][]string{
-				0: {"file1"},
+				1: {"file1"},
 			},
-			expUsed: []int{0},
+			expUsed: []int{1},
 		},
 		{
 			name:      "uneven distribution",
 			files:     []string{"file1", "file2", "file3"},
-			executors: []string{"exec1", "exec2"},
+			executors: []int{14, 6},
 			expMapping: map[int][]string{
-				0: {"file1", "file3"},
-				1: {"file2"},
+				14: {"file1", "file3"},
+				6:  {"file2"},
 			},
-			expUsed: []int{0, 1},
+			expUsed: []int{14, 6},
 		},
 		{
 			name:       "no files",
 			files:      []string{},
-			executors:  []string{"exec1", "exec2"},
+			executors:  []int{1, 3},
 			expMapping: map[int][]string{},
 			expUsed:    []int{},
 		},

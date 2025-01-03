@@ -17,92 +17,134 @@ import (
 const maxRetries = 10
 
 type ExecutorsClient struct {
-	MainIdx        int
+	MainIdx        *int
+	MainIdxMutex   *sync.Mutex
 	Sockets        []net.Conn
 	Addresses      []string
 	SocketStatuses []bool
-	Mutex          *sync.Mutex
+	Mutexes        []*sync.Mutex
 }
 
 func NewExecutorsClient() *ExecutorsClient {
-	sockets, addresses := OpenSockets(config.ExecutorAddresses, config.MainExecutorIdx)
-	statuses := make([]bool, len(addresses))
-	for i := range statuses {
-		statuses[i] = sockets[i] != nil
-	}
 
-	return &ExecutorsClient{
-		MainIdx:        0,
-		Sockets:        sockets,
-		Addresses:      addresses,
-		SocketStatuses: statuses,
-		Mutex:          &sync.Mutex{},
-	}
-}
+	mainIdx := config.MainExecutorIdx
 
-func OpenSockets(executors []string, mainIdx int) ([]net.Conn, []string) {
-	sockets := []net.Conn{}
 	addresses := []string{}
-	sockets = append(sockets, OpenSocket(executors[mainIdx]))
-	addresses = append(addresses, executors[mainIdx])
-	for i, executor := range executors {
+	addresses = append(addresses, config.ExecutorAddresses[mainIdx])
+	for i, executor := range config.ExecutorAddresses {
 		if i != mainIdx {
-			sockets = append(sockets, OpenSocket(executor))
 			addresses = append(addresses, executor)
 		}
 	}
-	return sockets, addresses
-}
 
-func (ec *ExecutorsClient) ReconnectExecutor(executorIdx int) {
-	ec.Mutex.Lock()
-	defer ec.Mutex.Unlock()
+	mainIdx = -1
 
-	if !ec.SocketStatuses[executorIdx] {
-		conn := OpenSocket(ec.Addresses[executorIdx])
-		ec.Sockets[executorIdx] = conn
-		ec.SocketStatuses[executorIdx] = true
-		log.Printf("Reconnected to executor %s", ec.Addresses[executorIdx])
+	statuses := make([]bool, len(addresses))
+	for i := range statuses {
+		statuses[i] = false
+	}
+
+	socketMutexes := make([]*sync.Mutex, len(addresses))
+	for i := range addresses {
+		socketMutexes[i] = &sync.Mutex{}
+	}
+
+	return &ExecutorsClient{
+		MainIdx:        &mainIdx,
+		MainIdxMutex:   &sync.Mutex{},
+		Sockets:        make([]net.Conn, len(addresses)),
+		Addresses:      addresses,
+		SocketStatuses: statuses,
+		Mutexes:        socketMutexes,
 	}
 }
 
-func OpenSocket(executor string) net.Conn {
+func (ec *ExecutorsClient) OpenSockets() {
+	for i := range ec.Addresses {
+		go ec.connectToExecutor(i)
+	}
+}
 
+func (ec *ExecutorsClient) connectToExecutor(executorIdx int) {
+
+	ec.Mutexes[executorIdx].Lock()
+	defer ec.Mutexes[executorIdx].Unlock()
+
+	log.Printf("Connecting to executor %s", ec.Addresses[executorIdx])
+
+	for {
+		conn, err := ec.openSocket(ec.Addresses[executorIdx])
+		if err == nil {
+			ec.Sockets[executorIdx] = conn
+			ec.SocketStatuses[executorIdx] = true
+			log.Printf("Connected to executor %s", ec.Addresses[executorIdx])
+
+			if executorIdx == 0 || *ec.MainIdx == -1 {
+				ec.MainIdxMutex.Lock()
+				*ec.MainIdx = executorIdx
+				ec.MainIdxMutex.Unlock()
+			}
+			return
+		}
+		log.Printf("Retrying connection to executor %s", ec.Addresses[executorIdx])
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func (ec *ExecutorsClient) openSocket(executor string) (net.Conn, error) {
 	var conn net.Conn
 	var err error
 
-	baseDelay := time.Second // Base delay for retries
+	baseDelay := time.Second
 
 	for retries := 0; retries < maxRetries; retries++ {
 		conn, err = net.Dial("tcp", executor)
 		if err == nil {
-			break
+			return conn, nil
 		}
 
-		// Calculate exponential backoff
-		backoff := baseDelay * (1 << retries) // 1, 2, 4, 8, 16 seconds
+		backoff := baseDelay * (1 << retries)
 		log.Printf("Retrying to connect to %v after %v... (%d/%d)", executor, backoff, retries+1, maxRetries)
 		time.Sleep(backoff)
 	}
 
 	if err != nil {
-		log.Panicf("Failed to dial connect to %v after %d retries: %v", executor, maxRetries, err)
+		log.Printf("Failed to connect to %v after %d retries", executor, maxRetries)
 	}
-	return conn
+
+	return nil, fmt.Errorf("failed to connect to %v after %d retries", executor, maxRetries)
 }
 
-func (ec *ExecutorsClient) allExecutorsConnected() bool {
-	for _, status := range ec.SocketStatuses {
-		if !status {
-			return false
+func (ec *ExecutorsClient) GetAvailableExecutorIdxs() ([]int, error) {
+
+	if *ec.MainIdx == -1 || !ec.SocketStatuses[*ec.MainIdx] {
+		return nil, fmt.Errorf("main executor is unavailable")
+	}
+
+	available := []int{*ec.MainIdx}
+	for i, status := range ec.SocketStatuses {
+		if i != *ec.MainIdx && status {
+			available = append(available, i)
 		}
 	}
-	return true
+	return available, nil
 }
 
-func (ec *ExecutorsClient) sendTaskToExecutor(guid string, files []string, executorIdx int, executorsCount int32, queryReq HttpQueryRequest) error {
+func (ec *ExecutorsClient) getFirstAvailableExecutor() int {
+	for i, status := range ec.SocketStatuses {
+		if status {
+			return i
+		}
+	}
+	return -1
+}
 
-	queryRequest, err := createProtoRequest(guid, files, queryReq, ec.Addresses[ec.MainIdx], config.ExecutorsPort, executorIdx == ec.MainIdx, executorsCount)
+func (ec *ExecutorsClient) SendTaskToExecutor(guid string, files []string, executorIdx int, executorsCount int32, queryReq HttpQueryRequest) error {
+
+	//ports := []int32{8081, 8083, 8085}
+	//queryRequest, err := CreateProtoRequest(guid, files, queryReq, ec.Addresses[*ec.MainIdx], ports[*ec.MainIdx], executorIdx == *ec.MainIdx, executorsCount)
+
+	queryRequest, err := CreateProtoRequest(guid, files, queryReq, ec.Addresses[*ec.MainIdx], config.ExecutorsPort, executorIdx == *ec.MainIdx, executorsCount)
 	if err != nil {
 		return err
 	}
@@ -144,31 +186,28 @@ func (ec *ExecutorsClient) connWrite(data []byte, executorIdx int) error {
 	if err != nil {
 		conn.Close()
 		log.Printf("Error writing data to connection with %s: %v", ec.Addresses[executorIdx], err)
-		ec.Mutex.Lock()
-		ec.SocketStatuses[executorIdx] = false
-		ec.Mutex.Unlock()
-		go ec.ReconnectExecutor(executorIdx)
+		ec.deactivateConn(executorIdx)
 		return err
 	}
 	return nil
 }
 
-func (ec *ExecutorsClient) receiveResponseFromMainExecutor(guid string) (HttpResult, error) {
+func (ec *ExecutorsClient) ReceiveResponseFromMainExecutor(guid string) (HttpResult, error) {
 
 	for i := 0; i < maxRetries; i++ {
 
-		sizeBytes, err := ec.connRead(4, ec.MainIdx)
+		sizeBytes, err := ec.connRead(4, *ec.MainIdx)
 		if err != nil {
 			return HttpResult{}, err
 		}
 		messageSize := binary.BigEndian.Uint32(sizeBytes)
 
-		data, err := ec.connRead(int(messageSize), ec.MainIdx)
+		data, err := ec.connRead(int(messageSize), *ec.MainIdx)
 		if err != nil {
 			return HttpResult{}, err
 		}
 
-		response, receivedGuid, err := readProtoResponse(data)
+		response, receivedGuid, err := ReadProtoResponse(data)
 
 		if err != nil {
 			return HttpResult{}, err
@@ -180,7 +219,7 @@ func (ec *ExecutorsClient) receiveResponseFromMainExecutor(guid string) (HttpRes
 
 	}
 
-	return HttpResult{}, fmt.Errorf("failed to receive response from %s after %d retries", ec.Addresses[ec.MainIdx], maxRetries)
+	return HttpResult{}, fmt.Errorf("failed to receive response from %s after %d retries", ec.Addresses[*ec.MainIdx], maxRetries)
 }
 
 func (ec *ExecutorsClient) connRead(size int, executorIdx int) ([]byte, error) {
@@ -190,11 +229,25 @@ func (ec *ExecutorsClient) connRead(size int, executorIdx int) ([]byte, error) {
 	if err != nil {
 		conn.Close()
 		log.Printf("Error reading data from connection with %s: %v", ec.Addresses[executorIdx], err)
-		ec.Mutex.Lock()
-		ec.SocketStatuses[executorIdx] = false
-		ec.Mutex.Unlock()
-		go ec.ReconnectExecutor(executorIdx)
+		ec.deactivateConn(executorIdx)
 		return []byte{}, err
 	}
 	return data, nil
+}
+
+func (ec *ExecutorsClient) deactivateConn(executorIdx int) {
+
+	ec.Mutexes[executorIdx].Lock()
+	ec.SocketStatuses[executorIdx] = false
+	ec.Mutexes[executorIdx].Unlock()
+
+	if executorIdx == *ec.MainIdx {
+
+		ec.MainIdxMutex.Lock()
+		newMainIdx := ec.getFirstAvailableExecutor()
+		*ec.MainIdx = newMainIdx
+		ec.MainIdxMutex.Unlock()
+
+		go ec.connectToExecutor(executorIdx)
+	}
 }

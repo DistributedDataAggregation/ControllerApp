@@ -35,7 +35,7 @@ func (qs *QueriesScheduler) processQueue() {
 	for req := range qs.Queue {
 		log.Printf("Processing request [%v]", req.Guid)
 
-		result := qs.Processor.processRequest(req.Guid.String(), req.Request)
+		result := qs.Processor.ProcessRequest(req.Guid.String(), req.Request)
 		req.ResultChan <- result
 
 		close(req.ResultChan)
