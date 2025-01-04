@@ -42,8 +42,9 @@ type HttpError struct {
 }
 
 type HttpPartialResult struct {
-	Value int64 `json:"value"`
-	Count int64 `json:"count"`
+	Value  int64 `json:"value"`
+	Count  int64 `json:"count"`
+	IsNull bool  `json:"is_null"`
 }
 
 type HttpValue struct {

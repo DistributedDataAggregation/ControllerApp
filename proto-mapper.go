@@ -94,8 +94,9 @@ func mapPartialResults(results []*protomodels.PartialResult) []HttpPartialResult
 	for i, result := range results {
 		if result != nil {
 			httpResults[i] = HttpPartialResult{
-				Value: result.Value,
-				Count: result.Count,
+				Value:  result.Value,
+				Count:  result.Count,
+				IsNull: result.IsNull,
 			}
 		}
 	}
