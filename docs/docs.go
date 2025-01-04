@@ -27,7 +27,7 @@ const docTemplate = `{
                 "tags": [
                     "query"
                 ],
-                "summary": "Query data from table",
+                "summary": "Query data from a table",
                 "parameters": [
                     {
                         "description": "Query Request",
@@ -63,6 +63,41 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "main.HttpAggregateFunction": {
+            "type": "string",
+            "enum": [
+                "Minimum",
+                "Maximum",
+                "Average"
+            ],
+            "x-enum-varnames": [
+                "Minimum",
+                "Maximum",
+                "Average"
+            ]
+        },
+        "main.HttpError": {
+            "type": "object",
+            "properties": {
+                "inner_message": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.HttpPartialResult": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
         "main.HttpQueryRequest": {
             "type": "object",
             "properties": {
@@ -83,6 +118,20 @@ const docTemplate = `{
                 }
             }
         },
+        "main.HttpQueryResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/main.HttpError"
+                },
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.HttpValue"
+                    }
+                }
+            }
+        },
         "main.HttpResult": {
             "type": "object",
             "properties": {
@@ -90,7 +139,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "result": {
-                    "$ref": "#/definitions/protomodels.QueryResponse"
+                    "$ref": "#/definitions/main.HttpQueryResponse"
                 }
             }
         },
@@ -101,33 +150,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "function": {
-                    "type": "string"
+                    "$ref": "#/definitions/main.HttpAggregateFunction"
                 }
             }
         },
-        "protomodels.PartialResult": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer"
-                },
-                "value": {
-                    "type": "integer"
-                }
-            }
-        },
-        "protomodels.QueryResponse": {
-            "type": "object",
-            "properties": {
-                "values": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/protomodels.Value"
-                    }
-                }
-            }
-        },
-        "protomodels.Value": {
+        "main.HttpValue": {
             "type": "object",
             "properties": {
                 "grouping_value": {
@@ -136,7 +163,7 @@ const docTemplate = `{
                 "results": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/protomodels.PartialResult"
+                        "$ref": "#/definitions/main.HttpPartialResult"
                     }
                 }
             }
