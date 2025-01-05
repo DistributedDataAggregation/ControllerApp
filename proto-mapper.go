@@ -91,16 +91,57 @@ func mapQueryResponse(src *protomodels.QueryResponse) HttpQueryResponse {
 
 func mapPartialResults(results []*protomodels.PartialResult) []HttpPartialResult {
 	httpResults := make([]HttpPartialResult, len(results))
+
 	for i, result := range results {
 		if result != nil {
-			httpResults[i] = HttpPartialResult{
-				Value:  result.Value,
-				Count:  result.Count,
-				IsNull: result.IsNull,
+
+			httpResult := HttpPartialResult{
+				IsNull:      result.IsNull,
+				Count:       result.Count,
+				Aggregation: map_aggregate_to_string(result.Function),
 			}
+
+			switch result.Type {
+			case protomodels.ResultType_INT:
+				if intValue, ok := result.GetValue().(*protomodels.PartialResult_IntValue); ok {
+					httpResult.ResultType = "INT"
+					httpResult.Value = &intValue.IntValue
+				}
+			case protomodels.ResultType_FLOAT:
+				if floatValue, ok := result.GetValue().(*protomodels.PartialResult_FloatValue); ok {
+					httpResult.ResultType = "FLOAT"
+					httpResult.FloatValue = &floatValue.FloatValue
+				}
+			case protomodels.ResultType_DOUBLE:
+				if doubleValue, ok := result.GetValue().(*protomodels.PartialResult_DoubleValue); ok {
+					httpResult.ResultType = "DOUBLE"
+					httpResult.DoubleValue = &doubleValue.DoubleValue
+				}
+			default:
+				httpResult.ResultType = "UNKNOWN"
+			}
+
+			httpResults[i] = httpResult
 		}
 	}
 	return httpResults
+}
+
+func map_aggregate_to_string(a protomodels.Aggregate) string {
+	switch a {
+	case protomodels.Aggregate_Minimum:
+		return "Minimum"
+	case protomodels.Aggregate_Maximum:
+		return "Maximum"
+	case protomodels.Aggregate_Average:
+		return "Average"
+	case protomodels.Aggregate_Median:
+		return "Median"
+	case protomodels.Aggregate_Unknown:
+		return "(Unknown)"
+	default:
+		return "(Unknown)"
+	}
 }
 
 func printProtoRequest(queryReq *protomodels.QueryRequest, adress net.Addr) {
