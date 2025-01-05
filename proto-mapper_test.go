@@ -196,7 +196,10 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 						{
 							GroupingValue: "group1",
 							Results: []*protomodels.PartialResult{
-								{Value: 100, Count: 2},
+								{
+									Value: &protomodels.PartialResult_IntValue{IntValue: 100}, // Correctly using PartialResult_IntValue
+									Count: 2,
+								},
 							},
 						},
 					},
@@ -210,7 +213,7 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 						{
 							GroupingValue: "group1",
 							Results: []HttpPartialResult{
-								{Value: 100, Count: 2},
+								{Value: ptrInt64(100), Count: 2},
 							},
 						},
 					},
@@ -256,4 +259,8 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 			}
 		})
 	}
+}
+
+func ptrInt64(v int64) *int64 {
+	return &v
 }

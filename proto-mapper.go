@@ -98,7 +98,7 @@ func mapPartialResults(results []*protomodels.PartialResult) []HttpPartialResult
 			httpResult := HttpPartialResult{
 				IsNull:      result.IsNull,
 				Count:       result.Count,
-				Aggregation: map_aggregate_to_string(result.Function),
+				Aggregation: protomodels.Aggregate_name[int32(result.Function)],
 			}
 
 			switch result.Type {
@@ -125,23 +125,6 @@ func mapPartialResults(results []*protomodels.PartialResult) []HttpPartialResult
 		}
 	}
 	return httpResults
-}
-
-func map_aggregate_to_string(a protomodels.Aggregate) string {
-	switch a {
-	case protomodels.Aggregate_Minimum:
-		return "Minimum"
-	case protomodels.Aggregate_Maximum:
-		return "Maximum"
-	case protomodels.Aggregate_Average:
-		return "Average"
-	case protomodels.Aggregate_Median:
-		return "Median"
-	case protomodels.Aggregate_Unknown:
-		return "(Unknown)"
-	default:
-		return "(Unknown)"
-	}
 }
 
 func printProtoRequest(queryReq *protomodels.QueryRequest, adress net.Addr) {
