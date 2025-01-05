@@ -191,14 +191,18 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 			guid: "guid",
 			data: func() []byte {
 				queryResponse := &protomodels.QueryResponse{
-					Guid: "guid",
+					Guid:  "guid",
+					Error: nil,
 					Values: []*protomodels.Value{
 						{
 							GroupingValue: "group1",
 							Results: []*protomodels.PartialResult{
 								{
-									Value: &protomodels.PartialResult_IntValue{IntValue: 100}, // Correctly using PartialResult_IntValue
-									Count: 2,
+									IsNull:   false,
+									Type:     protomodels.ResultType_INT,
+									Function: protomodels.Aggregate_Maximum,
+									Value:    &protomodels.PartialResult_IntValue{IntValue: 100},
+									Count:    1,
 								},
 							},
 						},
@@ -213,7 +217,13 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 						{
 							GroupingValue: "group1",
 							Results: []HttpPartialResult{
-								{Value: ptrInt64(100), Count: 2},
+								{
+									IsNull:      false,
+									Value:       ptrInt64(100),
+									Count:       1,
+									ResultType:  "INT",
+									Aggregation: protomodels.Aggregate_name[int32(protomodels.Aggregate_Maximum)],
+								},
 							},
 						},
 					},
