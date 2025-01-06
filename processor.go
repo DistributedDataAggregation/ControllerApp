@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/fs"
 	"log"
 	"path/filepath"
 	"sync"
@@ -19,15 +20,15 @@ func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) HttpR
 
 	availableIdxs, err := p.ExecutorsClient.GetAvailableExecutorIdxs()
 
-	if err != nil {
-		log.Printf("Could not proccess request: %s", err.Error())
+	// if err != nil {
+	// 	log.Printf("Could not proccess request: %s", err.Error())
 
-		return HttpResult{Response: HttpQueryResponse{
-			Error: &HttpError{
-				Message:      "Could not proccess request",
-				InnerMessage: err.Error(),
-			}}}
-	}
+	// 	return HttpResult{Response: HttpQueryResponse{
+	// 		Error: &HttpError{
+	// 			Message:      "Could not proccess request",
+	// 			InnerMessage: err.Error(),
+	// 		}}}
+	// }
 
 	files, err := p.findDataFiles(queryReq.TableName)
 	if err != nil || len(files) == 0 {
@@ -60,10 +61,24 @@ func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) HttpR
 }
 
 func (p *Processor) findDataFiles(tableName string) ([]string, error) {
-	files, err := filepath.Glob(filepath.Join(config.DataPath, "*"+tableName+"*"))
+	targetPath := filepath.Join(config.DataPath, tableName)
+	files := []string{}
+
+	err := filepath.Walk(targetPath, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && filepath.Ext(info.Name()) == ".parquet" {
+			relPath, _ := filepath.Rel(config.DataPath, path)
+			files = append(files, relPath)
+		}
+		return nil
+	})
+
 	if err != nil {
 		return nil, err
 	}
+
 	return files, nil
 }
 
