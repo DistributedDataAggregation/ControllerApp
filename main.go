@@ -33,9 +33,10 @@ func main() {
 	docs.SwaggerInfo.Host = config.SwaggerHost
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/query", queryHandler.handleQuery)
+	mux.HandleFunc("/api/v1/status", handleStatusCheck)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
-	handler := queryHandler.corsMiddleware(mux)
+	handler := corsMiddleware(mux)
 	log.Printf("Starting server on %v", config.ControllerPort)
 	log.Fatal(http.ListenAndServe(config.ControllerPort, handler))
 }
