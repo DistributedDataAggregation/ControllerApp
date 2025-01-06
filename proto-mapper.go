@@ -16,8 +16,8 @@ func CreateProtoRequest(guid string, files []string, queryReq HttpQueryRequest, 
 	for i, sel := range queryReq.SelectColumns {
 
 		if !sel.Function.IsValid() {
-			log.Printf("Invalid aggreage function %s. Supported aggregate functions: Minimum, Maximum, Average", string(sel.Function))
-			return nil, fmt.Errorf("invalid aggreage function %s, supported aggregate functions: Minimum, Maximum, Average", string(sel.Function))
+			log.Printf("Invalid aggreage function %s. Supported aggregate functions: Minimum, Maximum, Average, Sum, Count", string(sel.Function))
+			return nil, fmt.Errorf("invalid aggreage function %s, supported aggregate functions: Minimum, Maximum, Average, Sum, Count", string(sel.Function))
 		}
 
 		selects[i] = &protomodels.Select{

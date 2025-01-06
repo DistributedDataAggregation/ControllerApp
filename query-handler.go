@@ -15,11 +15,13 @@ const (
 	Minimum HttpAggregateFunction = "Minimum"
 	Maximum HttpAggregateFunction = "Maximum"
 	Average HttpAggregateFunction = "Average"
+	Sum     HttpAggregateFunction = "Sum"
+	Count   HttpAggregateFunction = "Count"
 )
 
 func (h HttpAggregateFunction) IsValid() bool {
 	switch h {
-	case Minimum, Maximum, Average:
+	case Minimum, Maximum, Average, Sum, Count:
 		return true
 	}
 	return false
