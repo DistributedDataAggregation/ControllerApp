@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -94,6 +95,20 @@ func (h *QueryHandler) handleQuery(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Invalid request payload: %v", err)
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+
+		return
+	}
+
+	err = validateQueryRequest(queryReq)
+
+	if err != nil {
+		result := HttpResult{Response: HttpQueryResponse{
+			Error: &HttpError{
+				Message:      "Failed to process request",
+				InnerMessage: err.Error(),
+			}}}
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(result)
 		return
 	}
 
@@ -115,4 +130,45 @@ func (h *QueryHandler) handleQuery(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	json.NewEncoder(w).Encode(result)
+}
+
+func validateQueryRequest(queryReq HttpQueryRequest) error {
+	if queryReq.TableName == "" {
+		log.Println("Validation error: table_name cannot be empty")
+		return fmt.Errorf("validation error: table_name cannot be empty")
+	}
+
+	if len(queryReq.GroupColumns) == 0 {
+		log.Println("Validation error: group_columns cannot be empty")
+		return fmt.Errorf("validation error: group_columns cannot be empty")
+	}
+
+	if len(queryReq.SelectColumns) == 0 {
+		log.Println("Validation error: select cannot be empty")
+		return fmt.Errorf("validation error: select cannot be empty")
+
+	}
+
+	seen := make(map[string]bool)
+	for _, groupCol := range queryReq.GroupColumns {
+		if seen[groupCol] {
+			log.Printf("Validation error: duplicate column '%s' in group_columns", groupCol)
+			return fmt.Errorf("validation error: duplicate column '%s' in group_columns", groupCol)
+		}
+		seen[groupCol] = true
+	}
+
+	for _, sel := range queryReq.SelectColumns {
+		if seen[sel.Column] {
+			log.Printf("Validation error: column '%s' cannot be in both group_columns and select", sel.Column)
+			return fmt.Errorf("validation error: column '%s' cannot be in both group_columns and select", sel.Column)
+		}
+
+		if !sel.Function.IsValid() {
+			log.Printf("Invalid aggregate function %s. Supported aggregate functions: Minimum, Maximum, Average, Sum, Count", string(sel.Function))
+			return fmt.Errorf("invalid aggregate function %s, supported aggregate functions: Minimum, Maximum, Average, Sum, Count", string(sel.Function))
+		}
+	}
+
+	return nil
 }
