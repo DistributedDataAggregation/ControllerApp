@@ -12,14 +12,13 @@ import (
 
 func CreateProtoRequest(guid string, files []string, queryReq HttpQueryRequest, mainExecutor string, mainExecutorPort int32,
 	isCurrentNodeMain bool, executorsCount int32) (*protomodels.QueryRequest, error) {
+
+	if err := validateQueryRequest(queryReq); err != nil {
+		return nil, err
+	}
+
 	selects := make([]*protomodels.Select, len(queryReq.SelectColumns))
 	for i, sel := range queryReq.SelectColumns {
-
-		if !sel.Function.IsValid() {
-			log.Printf("Invalid aggreage function %s. Supported aggregate functions: Minimum, Maximum, Average, Sum, Count", string(sel.Function))
-			return nil, fmt.Errorf("invalid aggreage function %s, supported aggregate functions: Minimum, Maximum, Average, Sum, Count", string(sel.Function))
-		}
-
 		selects[i] = &protomodels.Select{
 			Column:   sel.Column,
 			Function: protomodels.Aggregate(protomodels.Aggregate_value[string(sel.Function)]),
@@ -38,6 +37,48 @@ func CreateProtoRequest(guid string, files []string, queryReq HttpQueryRequest, 
 			ExecutorsCount:    executorsCount,
 		},
 	}, nil
+}
+
+func validateQueryRequest(queryReq HttpQueryRequest) error {
+	if queryReq.TableName == "" {
+		log.Println("Validation error: table_name cannot be empty")
+		return fmt.Errorf("validation error: table_name cannot be empty")
+	}
+
+	if len(queryReq.GroupColumns) == 0 {
+		log.Println("Validation error: group_columns cannot be empty")
+		return fmt.Errorf("validation error: group_columns cannot be empty")
+	}
+
+	if len(queryReq.SelectColumns) == 0 {
+		log.Println("Validation error: select cannot be empty")
+		return fmt.Errorf("validation error: select cannot be empty")
+	}
+
+	seen := make(map[string]bool)
+	for _, groupCol := range queryReq.GroupColumns {
+		if seen[groupCol] {
+			log.Printf("Validation error: duplicate column '%s' in group_columns", groupCol)
+			return fmt.Errorf("validation error: duplicate column '%s' in group_columns", groupCol)
+		}
+		seen[groupCol] = true
+	}
+
+	for _, sel := range queryReq.SelectColumns {
+		for _, groupCol := range queryReq.GroupColumns {
+			if sel.Column == groupCol {
+				log.Printf("Validation error: column '%s' cannot be in both group_columns and select", sel.Column)
+				return fmt.Errorf("validation error: column '%s' cannot be in both group_columns and select", sel.Column)
+			}
+		}
+
+		if !sel.Function.IsValid() {
+			log.Printf("Invalid aggregate function %s. Supported aggregate functions: Minimum, Maximum, Average, Sum, Count", string(sel.Function))
+			return fmt.Errorf("invalid aggregate function %s, supported aggregate functions: Minimum, Maximum, Average, Sum, Count", string(sel.Function))
+		}
+	}
+
+	return nil
 }
 
 func ReadProtoResponse(data []byte) (HttpResult, string, error) {
