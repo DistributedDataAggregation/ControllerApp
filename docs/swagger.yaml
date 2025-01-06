@@ -5,11 +5,15 @@ definitions:
     - Minimum
     - Maximum
     - Average
+    - Sum
+    - Count
     type: string
     x-enum-varnames:
     - Minimum
     - Maximum
     - Average
+    - Sum
+    - Count
   main.HttpError:
     properties:
       inner_message:
@@ -19,11 +23,25 @@ definitions:
     type: object
   main.HttpPartialResult:
     properties:
+      aggregation:
+        type: string
       count:
+        description: Count associated with the result.
         type: integer
+      double_value:
+        description: Double value (nullable).
+        type: number
+      float_value:
+        description: Float value (nullable).
+        type: number
       is_null:
+        description: Indicates if the result is null.
         type: boolean
+      result_type:
+        description: 'Type of result: "INT", "FLOAT", "DOUBLE".'
+        type: string
       value:
+        description: Integer value (nullable).
         type: integer
     type: object
   main.HttpQueryRequest:
@@ -70,6 +88,13 @@ definitions:
         items:
           $ref: '#/definitions/main.HttpPartialResult'
         type: array
+    type: object
+  main.ParquetColumnInfo:
+    properties:
+      name:
+        type: string
+      type:
+        type: string
     type: object
 externalDocs:
   description: OpenAPI
@@ -122,4 +147,54 @@ paths:
       summary: Health check endpoint
       tags:
       - health check
+  /tables:
+    get:
+      description: Returns the names of non-empty folders in the data path
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of table names
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal server error
+          schema:
+            type: strinf
+      summary: List available tables
+      tags:
+      - tables
+  /tables/columns:
+    get:
+      description: Returns column names and their types for a given table
+      parameters:
+      - description: Table name
+        in: query
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of columns with their types
+          schema:
+            items:
+              items:
+                $ref: '#/definitions/main.ParquetColumnInfo'
+              type: array
+            type: array
+        "400":
+          description: Bad request with error message
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get table columns
+      tags:
+      - tables
 swagger: "2.0"

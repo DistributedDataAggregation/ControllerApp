@@ -10,10 +10,12 @@ require (
 	google.golang.org/protobuf v1.35.1
 )
 
+require golang.org/x/exp v0.0.0-20210220032938-85be41e4509f // indirect
+
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/apache/arrow/go/arrow v0.0.0-20211112161151-bc219186db40 // indirect
-	github.com/apache/thrift v0.14.2 // indirect
+	github.com/apache/thrift v0.15.0 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect
 	github.com/go-openapi/spec v0.21.0 // indirect

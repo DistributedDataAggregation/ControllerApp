@@ -80,6 +80,82 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/tables": {
+            "get": {
+                "description": "Returns the names of non-empty folders in the data path",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tables"
+                ],
+                "summary": "List available tables",
+                "responses": {
+                    "200": {
+                        "description": "List of table names",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "strinf"
+                        }
+                    }
+                }
+            }
+        },
+        "/tables/columns": {
+            "get": {
+                "description": "Returns column names and their types for a given table",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tables"
+                ],
+                "summary": "Get table columns",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Table name",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of columns with their types",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/main.ParquetColumnInfo"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request with error message",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -88,12 +164,16 @@ const docTemplate = `{
             "enum": [
                 "Minimum",
                 "Maximum",
-                "Average"
+                "Average",
+                "Sum",
+                "Count"
             ],
             "x-enum-varnames": [
                 "Minimum",
                 "Maximum",
-                "Average"
+                "Average",
+                "Sum",
+                "Count"
             ]
         },
         "main.HttpError": {
@@ -110,13 +190,31 @@ const docTemplate = `{
         "main.HttpPartialResult": {
             "type": "object",
             "properties": {
+                "aggregation": {
+                    "type": "string"
+                },
                 "count": {
+                    "description": "Count associated with the result.",
                     "type": "integer"
                 },
+                "double_value": {
+                    "description": "Double value (nullable).",
+                    "type": "number"
+                },
+                "float_value": {
+                    "description": "Float value (nullable).",
+                    "type": "number"
+                },
                 "is_null": {
+                    "description": "Indicates if the result is null.",
                     "type": "boolean"
                 },
+                "result_type": {
+                    "description": "Type of result: \"INT\", \"FLOAT\", \"DOUBLE\".",
+                    "type": "string"
+                },
                 "value": {
+                    "description": "Integer value (nullable).",
                     "type": "integer"
                 }
             }
@@ -188,6 +286,17 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/main.HttpPartialResult"
                     }
+                }
+            }
+        },
+        "main.ParquetColumnInfo": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         }
