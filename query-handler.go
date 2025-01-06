@@ -42,9 +42,13 @@ type HttpError struct {
 }
 
 type HttpPartialResult struct {
-	Value  int64 `json:"value"`
-	Count  int64 `json:"count"`
-	IsNull bool  `json:"is_null"`
+	IsNull      bool     `json:"is_null"`                // Indicates if the result is null.
+	Value       *int64   `json:"value,omitempty"`        // Integer value (nullable).
+	FloatValue  *float32 `json:"float_value,omitempty"`  // Float value (nullable).
+	DoubleValue *float64 `json:"double_value,omitempty"` // Double value (nullable).
+	Count       int64    `json:"count"`                  // Count associated with the result.
+	ResultType  string   `json:"result_type"`            // Type of result: "INT", "FLOAT", "DOUBLE".
+	Aggregation string   `json:"aggregation"`
 }
 
 type HttpValue struct {

@@ -91,13 +91,37 @@ func mapQueryResponse(src *protomodels.QueryResponse) HttpQueryResponse {
 
 func mapPartialResults(results []*protomodels.PartialResult) []HttpPartialResult {
 	httpResults := make([]HttpPartialResult, len(results))
+
 	for i, result := range results {
 		if result != nil {
-			httpResults[i] = HttpPartialResult{
-				Value:  result.Value,
-				Count:  result.Count,
-				IsNull: result.IsNull,
+
+			httpResult := HttpPartialResult{
+				IsNull:      result.IsNull,
+				Count:       result.Count,
+				Aggregation: protomodels.Aggregate_name[int32(result.Function)],
 			}
+
+			switch result.Type {
+			case protomodels.ResultType_INT:
+				if intValue, ok := result.GetValue().(*protomodels.PartialResult_IntValue); ok {
+					httpResult.ResultType = "INT"
+					httpResult.Value = &intValue.IntValue
+				}
+			case protomodels.ResultType_FLOAT:
+				if floatValue, ok := result.GetValue().(*protomodels.PartialResult_FloatValue); ok {
+					httpResult.ResultType = "FLOAT"
+					httpResult.FloatValue = &floatValue.FloatValue
+				}
+			case protomodels.ResultType_DOUBLE:
+				if doubleValue, ok := result.GetValue().(*protomodels.PartialResult_DoubleValue); ok {
+					httpResult.ResultType = "DOUBLE"
+					httpResult.DoubleValue = &doubleValue.DoubleValue
+				}
+			default:
+				httpResult.ResultType = "UNKNOWN"
+			}
+
+			httpResults[i] = httpResult
 		}
 	}
 	return httpResults
