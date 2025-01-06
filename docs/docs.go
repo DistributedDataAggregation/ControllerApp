@@ -60,6 +60,26 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/status": {
+            "get": {
+                "description": "Checks controller status",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health check"
+                ],
+                "summary": "Health check endpoint",
+                "responses": {
+                    "200": {
+                        "description": "Health check passed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -92,6 +112,9 @@ const docTemplate = `{
             "properties": {
                 "count": {
                     "type": "integer"
+                },
+                "is_null": {
+                    "type": "boolean"
                 },
                 "value": {
                     "type": "integer"
