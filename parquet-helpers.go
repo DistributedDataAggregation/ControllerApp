@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
-	"github.com/xitongsys/parquet-go-source/local"
-	"github.com/xitongsys/parquet-go/parquet"
-	"github.com/xitongsys/parquet-go/reader"
+	"github.com/apache/arrow/go/parquet/file"
+	"github.com/apache/arrow/go/parquet/schema"
 )
 
 type ParquetColumnInfo struct {
@@ -15,28 +16,23 @@ type ParquetColumnInfo struct {
 
 func GetParquetSchema(filePath string) ([]ParquetColumnInfo, error) {
 
-	file, err := local.NewLocalFileReader(filePath)
+	parquetFile, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open file: %v", err)
 	}
-	defer file.Close()
+	defer parquetFile.Close()
 
-	parquetReader, err := reader.NewParquetReader(file, nil, 1)
+	reader, err := file.NewParquetReader(parquetFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create ParquetReader: %v", err)
 	}
-	defer parquetReader.ReadStop()
 
-	schemaHandler := parquetReader.SchemaHandler
+	schema := reader.MetaData().Schema
 	var columns []ParquetColumnInfo
 
-	for _, col := range schemaHandler.SchemaElements {
-
-		if col.GetNumChildren() != 0 {
-			continue
-		}
-
-		columnName := col.GetName()
+	for i := 0; i < schema.NumColumns(); i++ {
+		col := schema.Column(i)
+		columnName := col.Name()
 		columnType := GetColumnType(col)
 		columns = append(columns, ParquetColumnInfo{Name: columnName, Type: columnType})
 	}
@@ -44,41 +40,37 @@ func GetParquetSchema(filePath string) ([]ParquetColumnInfo, error) {
 	return columns, nil
 }
 
-func GetColumnType(col *parquet.SchemaElement) string {
+func GetColumnType(col *schema.Column) string {
 
-	columnLogicalType := col.GetLogicalType()
-
-	if columnLogicalType != nil {
-
-		if columnLogicalType.IsSetINTEGER() {
-			return "INTEGER"
-		}
-
-		if columnLogicalType.IsSetSTRING() {
-			return "STRING"
-		}
-
-		if columnLogicalType.IsSetDECIMAL() {
-			return "DECIMAL"
-		}
-
-		return "UNSUPPORTED"
-
+	columnLogicalType := col.LogicalType()
+	if columnLogicalType != nil && !columnLogicalType.Equals(schema.NoLogicalType{}) && !columnLogicalType.Equals(schema.IntLogicalType{}) {
+		return columnLogicalType.String()
 	}
 
-	if col.Type != nil {
-		return col.Type.String()
-	}
-
-	return "UNSUPPORTED"
+	return col.PhysicalType().String()
 }
 
 func FilterUnsupportedParquetColumns(columns []ParquetColumnInfo) []ParquetColumnInfo {
 	var filteredColumns []ParquetColumnInfo
+	allowedTypes := []string{"INT", "DOUBLE", "FLOAT", "DECIMAL", "BOOL", "STRING"}
+
 	for _, col := range columns {
-		if col.Type != "UNSUPPORTED" {
-			filteredColumns = append(filteredColumns, col)
+		normalizedType := normalizeType(col.Type)
+		for _, allowedType := range allowedTypes {
+			if strings.Contains(normalizedType, allowedType) {
+				filteredColumns = append(filteredColumns, ParquetColumnInfo{
+					Name: col.Name,
+					Type: normalizedType,
+				})
+				break
+			}
 		}
 	}
+
 	return filteredColumns
+}
+
+func normalizeType(colType string) string {
+	trimmedType := strings.Split(colType, "(")[0]
+	return strings.ToUpper(trimmedType)
 }
