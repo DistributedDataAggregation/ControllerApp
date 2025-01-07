@@ -162,13 +162,14 @@ paths:
         "500":
           description: Internal server error
           schema:
-            type: strinf
+            type: string
       summary: List available tables
       tags:
       - tables
   /tables/columns:
     get:
-      description: Returns column names and their types for a given table
+      description: Returns column names and their types for a given table. Filters
+        out columns of unsupported types.
       parameters:
       - description: Table name
         in: query
@@ -195,6 +196,38 @@ paths:
           schema:
             type: string
       summary: Get table columns
+      tags:
+      - tables
+  /tables/select-columns:
+    get:
+      description: Returns column names and their types for a given table. Filters
+        out columns of types unsupported for aggregations.
+      parameters:
+      - description: Table name
+        in: query
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of columns with their types
+          schema:
+            items:
+              items:
+                $ref: '#/definitions/main.ParquetColumnInfo'
+              type: array
+            type: array
+        "400":
+          description: Bad request with error message
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get table columns that can be aggregated
       tags:
       - tables
 swagger: "2.0"

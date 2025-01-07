@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"path/filepath"
 	"sync"
 )
 
@@ -43,6 +45,16 @@ func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) HttpR
 			}}}
 	}
 
+	err = p.validateFilesSchema(files)
+	if err != nil {
+		log.Printf("Failed to process request [%s]: %v", guid, err)
+		return HttpResult{Response: HttpQueryResponse{
+			Error: &HttpError{
+				Message:      "Failed to process request",
+				InnerMessage: err.Error(),
+			}}}
+	}
+
 	filesPerExecutorIdx, executorsIdxs := p.Planner.distributeFiles(files, availableIdxs)
 
 	result, err := p.sendToExecutors(guid, filesPerExecutorIdx, executorsIdxs, queryReq)
@@ -56,6 +68,23 @@ func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) HttpR
 	}
 
 	return result
+}
+
+func (p *Processor) validateFilesSchema(files []string) error {
+	schema, err := GetParquetSchema(filepath.Join(config.DataPath, files[0]))
+	if err != nil {
+		return err
+	}
+	for i := 1; i < len(files); i++ {
+		temp, err := GetParquetSchema(filepath.Join(config.DataPath, files[i]))
+		if err != nil {
+			return err
+		}
+		if !EqualsParquetSchema(schema, temp) {
+			return fmt.Errorf("files %s and %s have different schema", files[0], files[i])
+		}
+	}
+	return nil
 }
 
 func (p *Processor) sendToExecutors(guid string, filesPerExecutorIdx map[int][]string, executorsIdxs []int, queryReq HttpQueryRequest) (HttpResult, error) {

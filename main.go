@@ -36,6 +36,7 @@ func main() {
 	mux.HandleFunc("/api/v1/status", handleStatusCheck)
 	mux.HandleFunc("/api/v1/tables", handleTablesQuery)
 	mux.HandleFunc("/api/v1/tables/columns", handleTablesColumnsQuery)
+	mux.HandleFunc("/api/v1/tables/select-columns", handleTablesSelectColumnsQuery)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	handler := corsMiddleware(mux)

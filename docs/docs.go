@@ -104,7 +104,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "strinf"
+                            "type": "string"
                         }
                     }
                 }
@@ -112,7 +112,7 @@ const docTemplate = `{
         },
         "/tables/columns": {
             "get": {
-                "description": "Returns column names and their types for a given table",
+                "description": "Returns column names and their types for a given table. Filters out columns of unsupported types.",
                 "produces": [
                     "application/json"
                 ],
@@ -120,6 +120,53 @@ const docTemplate = `{
                     "tables"
                 ],
                 "summary": "Get table columns",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Table name",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of columns with their types",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/main.ParquetColumnInfo"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request with error message",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/tables/select-columns": {
+            "get": {
+                "description": "Returns column names and their types for a given table. Filters out columns of types unsupported for aggregations.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tables"
+                ],
+                "summary": "Get table columns that can be aggregated",
                 "parameters": [
                     {
                         "type": "string",
