@@ -16,6 +16,7 @@ type Config struct {
 	DataPath          string
 	MainExecutorIdx   int
 	SwaggerHost       string
+	AllowedOrigin     string
 	ExecutorsPort     int32
 }
 
@@ -30,6 +31,7 @@ func LoadConfig() (*Config, error) {
 	dataPath := os.Getenv("DATA_PATH")
 	mainExecutorIdx := os.Getenv("MAIN_EXECUTOR_IDX")
 	swaggerHost := os.Getenv("SWAGGER_HOST")
+	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
 	executorsPort := os.Getenv("EXECUTOR_EXECUTOR_PORT")
 
 	if len(executorAddresses) == 0 || executorAddresses[0] == "" {
@@ -79,6 +81,7 @@ func LoadConfig() (*Config, error) {
 		DataPath:          dataPath,
 		MainExecutorIdx:   idx,
 		SwaggerHost:       swaggerHost,
+		AllowedOrigin:     allowedOrigin,
 		ExecutorsPort:     int32(port),
 	}, nil
 }
