@@ -12,14 +12,9 @@ import (
 
 func CreateProtoRequest(guid string, files []string, queryReq HttpQueryRequest, mainExecutor string, mainExecutorPort int32,
 	isCurrentNodeMain bool, executorsCount int32) (*protomodels.QueryRequest, error) {
+
 	selects := make([]*protomodels.Select, len(queryReq.SelectColumns))
 	for i, sel := range queryReq.SelectColumns {
-
-		if !sel.Function.IsValid() {
-			log.Printf("Invalid aggreage function %s. Supported aggregate functions: Minimum, Maximum, Average, Sum, Count", string(sel.Function))
-			return nil, fmt.Errorf("invalid aggreage function %s, supported aggregate functions: Minimum, Maximum, Average, Sum, Count", string(sel.Function))
-		}
-
 		selects[i] = &protomodels.Select{
 			Column:   sel.Column,
 			Function: protomodels.Aggregate(protomodels.Aggregate_value[string(sel.Function)]),
