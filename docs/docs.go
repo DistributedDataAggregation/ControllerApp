@@ -203,6 +203,57 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/tables/upload": {
+            "post": {
+                "description": "Uploads a Parquet file (max 10 MB) to a table with a given name. If the table does not exist, it is created.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tables"
+                ],
+                "summary": "Upload file to a table with given name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Table name",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File to upload (must have .parquet extension)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File uploaded successfully",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid table name or file",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {

@@ -37,6 +37,7 @@ func main() {
 	mux.HandleFunc("/api/v1/tables", handleTablesQuery)
 	mux.HandleFunc("/api/v1/tables/columns", handleTablesColumnsQuery)
 	mux.HandleFunc("/api/v1/tables/select-columns", handleTablesSelectColumnsQuery)
+	mux.HandleFunc("/api/v1/tables/upload", handleFileUpload)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	handler := corsMiddleware(mux)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"mime/multipart"
 	"os"
 	"strings"
 
@@ -38,7 +39,7 @@ func getParquetColumnType(colType string) string {
 	return string(UNSUPPORTED)
 }
 
-func GetParquetSchema(filePath string) ([]ParquetColumnInfo, error) {
+func GetParquetSchemaByPath(filePath string) ([]ParquetColumnInfo, error) {
 
 	parquetFile, err := os.Open(filePath)
 	if err != nil {
@@ -51,6 +52,21 @@ func GetParquetSchema(filePath string) ([]ParquetColumnInfo, error) {
 		return nil, fmt.Errorf("cannot create ParquetReader: %v", err)
 	}
 
+	return getParquetSchema(reader), nil
+}
+
+func GetParquetSchemaByMultipartFile(parquetFile multipart.File) ([]ParquetColumnInfo, error) {
+
+	reader, err := file.NewParquetReader(parquetFile)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create ParquetReader: %v", err)
+	}
+
+	return getParquetSchema(reader), nil
+}
+
+func getParquetSchema(reader *file.Reader) []ParquetColumnInfo {
+
 	schema := reader.MetaData().Schema
 	var columns []ParquetColumnInfo
 
@@ -61,7 +77,7 @@ func GetParquetSchema(filePath string) ([]ParquetColumnInfo, error) {
 		columns = append(columns, ParquetColumnInfo{Name: columnName, Type: columnType})
 	}
 
-	return columns, nil
+	return columns
 }
 
 func getColumnType(col *schema.Column) string {

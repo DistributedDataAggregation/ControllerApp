@@ -230,4 +230,39 @@ paths:
       summary: Get table columns that can be aggregated
       tags:
       - tables
+  /tables/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads a Parquet file (max 10 MB) to a table with a given name.
+        If the table does not exist, it is created.
+      parameters:
+      - description: Table name
+        in: query
+        name: name
+        required: true
+        type: string
+      - description: File to upload (must have .parquet extension)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: File uploaded successfully
+          schema:
+            type: string
+        "400":
+          description: Invalid table name or file
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Upload file to a table with given name
+      tags:
+      - tables
 swagger: "2.0"

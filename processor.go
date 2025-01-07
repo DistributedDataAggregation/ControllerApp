@@ -71,12 +71,12 @@ func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) HttpR
 }
 
 func (p *Processor) validateFilesSchema(files []string) error {
-	schema, err := GetParquetSchema(filepath.Join(config.DataPath, files[0]))
+	schema, err := GetParquetSchemaByPath(filepath.Join(config.DataPath, files[0]))
 	if err != nil {
 		return err
 	}
 	for i := 1; i < len(files); i++ {
-		temp, err := GetParquetSchema(filepath.Join(config.DataPath, files[i]))
+		temp, err := GetParquetSchemaByPath(filepath.Join(config.DataPath, files[i]))
 		if err != nil {
 			return err
 		}
