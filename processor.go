@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"path/filepath"
 	"sync"
 )
 
@@ -71,12 +70,12 @@ func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) HttpR
 }
 
 func (p *Processor) validateFilesSchema(files []string) error {
-	schema, err := GetParquetSchemaByPath(filepath.Join(config.DataPath, files[0]))
+	schema, err := GetParquetSchemaByPath(files[0])
 	if err != nil {
 		return err
 	}
 	for i := 1; i < len(files); i++ {
-		temp, err := GetParquetSchemaByPath(filepath.Join(config.DataPath, files[i]))
+		temp, err := GetParquetSchemaByPath(files[i])
 		if err != nil {
 			return err
 		}

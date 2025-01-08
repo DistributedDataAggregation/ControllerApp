@@ -37,8 +37,8 @@ func findDataFiles(tableName string) ([]string, error) {
 			return err
 		}
 		if !info.IsDir() && filepath.Ext(info.Name()) == ".parquet" {
-			relPath, _ := filepath.Rel(config.DataPath, path)
-			files = append(files, relPath)
+			//relPath, _ := filepath.Rel(config.DataPath, path)
+			files = append(files, path)
 		}
 		return nil
 	})

@@ -54,7 +54,7 @@ func handleTablesColumnsQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	columns, err := GetParquetSchemaByPath(filepath.Join(config.DataPath, files[0]))
+	columns, err := GetParquetSchemaByPath(files[0])
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error getting parquet schema: %v", err), http.StatusInternalServerError)
 		return
@@ -88,7 +88,7 @@ func handleTablesSelectColumnsQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	columns, err := GetParquetSchemaByPath(filepath.Join(config.DataPath, files[0]))
+	columns, err := GetParquetSchemaByPath(files[0])
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error getting parquet schema: %v", err), http.StatusInternalServerError)
 		return
@@ -167,7 +167,7 @@ func validateFileSchema(tableName string, file multipart.File) (int, error) {
 		return http.StatusInternalServerError, fmt.Errorf("failed to retreive existing table files")
 	}
 	if len(files) > 0 {
-		schema, err := GetParquetSchemaByPath(filepath.Join(config.DataPath, files[0]))
+		schema, err := GetParquetSchemaByPath(files[0])
 		if err != nil {
 			return http.StatusInternalServerError, fmt.Errorf("failed to get existing table schema")
 		}
