@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"mime/multipart"
 	"os"
 	"strings"
@@ -56,6 +57,12 @@ func GetParquetSchemaByPath(filePath string) ([]ParquetColumnInfo, error) {
 }
 
 func GetParquetSchemaByMultipartFile(parquetFile multipart.File) ([]ParquetColumnInfo, error) {
+
+	currentPos, err := parquetFile.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current file position")
+	}
+	defer parquetFile.Seek(currentPos, io.SeekStart)
 
 	reader, err := file.NewParquetReader(parquetFile)
 	if err != nil {
