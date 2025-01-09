@@ -72,6 +72,180 @@
                     }
                 }
             }
+        },
+        "/tables": {
+            "get": {
+                "description": "Returns the names of non-empty folders in the data path",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tables"
+                ],
+                "summary": "List available tables",
+                "responses": {
+                    "200": {
+                        "description": "List of table names",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/tables/columns": {
+            "get": {
+                "description": "Returns column names and their types for a given table. Filters out columns of unsupported types.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tables"
+                ],
+                "summary": "Get table columns",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Table name",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of columns with their types",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/main.ParquetColumnInfo"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request with error message",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/tables/select-columns": {
+            "get": {
+                "description": "Returns column names and their types for a given table. Filters out columns of types unsupported for aggregations.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tables"
+                ],
+                "summary": "Get table columns that can be aggregated",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Table name",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of columns with their types",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/main.ParquetColumnInfo"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request with error message",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/tables/upload": {
+            "post": {
+                "description": "Uploads a Parquet file (max 10 MB) to a table with a given name. If the table does not exist, it is created.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tables"
+                ],
+                "summary": "Upload file to a table with given name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Table name",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File to upload (must have .parquet extension)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File uploaded successfully",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid table name or file",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -80,12 +254,16 @@
             "enum": [
                 "Minimum",
                 "Maximum",
-                "Average"
+                "Average",
+                "Sum",
+                "Count"
             ],
             "x-enum-varnames": [
                 "Minimum",
                 "Maximum",
-                "Average"
+                "Average",
+                "Sum",
+                "Count"
             ]
         },
         "main.HttpError": {
@@ -102,13 +280,31 @@
         "main.HttpPartialResult": {
             "type": "object",
             "properties": {
+                "aggregation": {
+                    "type": "string"
+                },
                 "count": {
+                    "description": "Count associated with the result.",
                     "type": "integer"
                 },
+                "double_value": {
+                    "description": "Double value (nullable).",
+                    "type": "number"
+                },
+                "float_value": {
+                    "description": "Float value (nullable).",
+                    "type": "number"
+                },
                 "is_null": {
+                    "description": "Indicates if the result is null.",
                     "type": "boolean"
                 },
+                "result_type": {
+                    "description": "Type of result: \"INT\", \"FLOAT\", \"DOUBLE\".",
+                    "type": "string"
+                },
                 "value": {
+                    "description": "Integer value (nullable).",
                     "type": "integer"
                 }
             }
@@ -180,6 +376,17 @@
                     "items": {
                         "$ref": "#/definitions/main.HttpPartialResult"
                     }
+                }
+            }
+        },
+        "main.ParquetColumnInfo": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         }

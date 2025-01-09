@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"path/filepath"
 	"sync"
 )
 
@@ -29,7 +29,7 @@ func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) HttpR
 			}}}
 	}
 
-	files, err := p.findDataFiles(queryReq.TableName)
+	files, err := findDataFiles(queryReq.TableName)
 	if err != nil || len(files) == 0 {
 		innerMessage := ""
 		if err != nil {
@@ -41,6 +41,16 @@ func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) HttpR
 			Error: &HttpError{
 				Message:      "Could not find files",
 				InnerMessage: innerMessage,
+			}}}
+	}
+
+	err = p.validateFilesSchema(files)
+	if err != nil {
+		log.Printf("Failed to process request [%s]: %v", guid, err)
+		return HttpResult{Response: HttpQueryResponse{
+			Error: &HttpError{
+				Message:      "Failed to process request",
+				InnerMessage: err.Error(),
 			}}}
 	}
 
@@ -59,12 +69,21 @@ func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) HttpR
 	return result
 }
 
-func (p *Processor) findDataFiles(tableName string) ([]string, error) {
-	files, err := filepath.Glob(filepath.Join(config.DataPath, "*"+tableName+"*"))
+func (p *Processor) validateFilesSchema(files []string) error {
+	schema, err := GetParquetSchemaByPath(files[0])
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return files, nil
+	for i := 1; i < len(files); i++ {
+		temp, err := GetParquetSchemaByPath(files[i])
+		if err != nil {
+			return err
+		}
+		if !EqualsParquetSchema(schema, temp) {
+			return fmt.Errorf("files %s and %s have different schema", files[0], files[i])
+		}
+	}
+	return nil
 }
 
 func (p *Processor) sendToExecutors(guid string, filesPerExecutorIdx map[int][]string, executorsIdxs []int, queryReq HttpQueryRequest) (HttpResult, error) {
