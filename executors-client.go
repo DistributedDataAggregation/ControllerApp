@@ -207,7 +207,7 @@ func (ec *ExecutorsClient) ReceiveResponseFromMainExecutor(guid string) (HttpRes
 			return HttpResult{}, err
 		}
 
-		response, receivedGuid, err := ReadProtoResponse(data)
+		response, receivedGuid, err := ReadQueryResultProto(data)
 
 		if err != nil {
 			return HttpResult{}, err
