@@ -4,7 +4,6 @@ import (
 	"controller/protomodels"
 	"fmt"
 	"log"
-	"net"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -122,7 +121,7 @@ func mapPartialResults(results []*protomodels.PartialResult) []HttpPartialResult
 	return httpResults
 }
 
-func printProtoRequest(queryReq *protomodels.QueryRequest, adress net.Addr) {
+func printProtoRequest(queryReq *protomodels.QueryRequest, adress string) {
 	log.Printf("Sent request to %s\n", adress)
 	log.Printf("Files:\n")
 	for _, file := range queryReq.FilesNames {
