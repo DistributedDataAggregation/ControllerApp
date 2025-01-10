@@ -190,19 +190,18 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 			name: "valid response",
 			guid: "guid",
 			data: func() []byte {
-				queryResponse := &protomodels.QueryResponse{
+				queryResponse := &protomodels.QueryResult{
 					Guid:  "guid",
 					Error: nil,
-					Values: []*protomodels.Value{
+					Values: []*protomodels.ResultValue{
 						{
 							GroupingValue: "group1",
-							Results: []*protomodels.PartialResult{
+							Results: []*protomodels.CombinedResult{
 								{
 									IsNull:   false,
 									Type:     protomodels.ResultType_INT,
 									Function: protomodels.Aggregate_Maximum,
-									Value:    &protomodels.PartialResult_IntValue{IntValue: 100},
-									Count:    1,
+									Value:    &protomodels.CombinedResult_IntValue{IntValue: 100},
 								},
 							},
 						},
@@ -220,7 +219,6 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 								{
 									IsNull:      false,
 									Value:       ptrInt64(100),
-									Count:       1,
 									ResultType:  "INT",
 									Aggregation: protomodels.Aggregate_name[int32(protomodels.Aggregate_Maximum)],
 								},
@@ -249,7 +247,7 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, receivedGuid, err := ReadProtoResponse(tt.data)
+			result, receivedGuid, err := ReadQueryResultProto(tt.data)
 
 			if (err != nil) != tt.expectedError {
 				t.Errorf("expected error: %v, got: %v", tt.expectedError, err)
