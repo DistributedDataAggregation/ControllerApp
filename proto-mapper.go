@@ -4,7 +4,6 @@ import (
 	"controller/protomodels"
 	"fmt"
 	"log"
-	"net"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -35,27 +34,26 @@ func CreateProtoRequest(guid string, files []string, queryReq HttpQueryRequest, 
 	}, nil
 }
 
-func ReadProtoResponse(data []byte) (HttpResult, string, error) {
-
+func ReadQueryResultProto(data []byte) (HttpResult, string, error) {
 	if len(data) == 0 {
 		return HttpResult{}, "", fmt.Errorf("empty input data")
 	}
 
-	var queryResponse protomodels.QueryResponse
-	err := proto.Unmarshal(data, &queryResponse)
+	var queryResult protomodels.QueryResult
+	err := proto.Unmarshal(data, &queryResult)
 	if err != nil {
 		log.Printf("Error unmarshalling QueryResponse: %v", err)
 		return HttpResult{}, "", err
 	}
 
 	httpResult := HttpResult{
-		Response: mapQueryResponse(&queryResponse),
+		Response: mapQueryResult(&queryResult),
 	}
 
-	return httpResult, queryResponse.Guid, nil
+	return httpResult, queryResult.Guid, nil
 }
 
-func mapQueryResponse(src *protomodels.QueryResponse) HttpQueryResponse {
+func mapQueryResult(src *protomodels.QueryResult) HttpQueryResponse {
 	if src == nil {
 		return HttpQueryResponse{}
 	}
@@ -73,7 +71,7 @@ func mapQueryResponse(src *protomodels.QueryResponse) HttpQueryResponse {
 		if value != nil {
 			httpValues[i] = &HttpValue{
 				GroupingValue: value.GroupingValue,
-				Results:       mapPartialResults(value.Results),
+				Results:       mapCombinedResults(value.Results),
 			}
 		}
 	}
@@ -84,7 +82,7 @@ func mapQueryResponse(src *protomodels.QueryResponse) HttpQueryResponse {
 	}
 }
 
-func mapPartialResults(results []*protomodels.PartialResult) []HttpPartialResult {
+func mapCombinedResults(results []*protomodels.CombinedResult) []HttpPartialResult {
 	httpResults := make([]HttpPartialResult, len(results))
 
 	for i, result := range results {
@@ -92,23 +90,22 @@ func mapPartialResults(results []*protomodels.PartialResult) []HttpPartialResult
 
 			httpResult := HttpPartialResult{
 				IsNull:      result.IsNull,
-				Count:       result.Count,
 				Aggregation: protomodels.Aggregate_name[int32(result.Function)],
 			}
 
 			switch result.Type {
 			case protomodels.ResultType_INT:
-				if intValue, ok := result.GetValue().(*protomodels.PartialResult_IntValue); ok {
+				if intValue, ok := result.GetValue().(*protomodels.CombinedResult_IntValue); ok {
 					httpResult.ResultType = "INT"
 					httpResult.Value = &intValue.IntValue
 				}
 			case protomodels.ResultType_FLOAT:
-				if floatValue, ok := result.GetValue().(*protomodels.PartialResult_FloatValue); ok {
+				if floatValue, ok := result.GetValue().(*protomodels.CombinedResult_FloatValue); ok {
 					httpResult.ResultType = "FLOAT"
 					httpResult.FloatValue = &floatValue.FloatValue
 				}
 			case protomodels.ResultType_DOUBLE:
-				if doubleValue, ok := result.GetValue().(*protomodels.PartialResult_DoubleValue); ok {
+				if doubleValue, ok := result.GetValue().(*protomodels.CombinedResult_DoubleValue); ok {
 					httpResult.ResultType = "DOUBLE"
 					httpResult.DoubleValue = &doubleValue.DoubleValue
 				}
@@ -122,7 +119,7 @@ func mapPartialResults(results []*protomodels.PartialResult) []HttpPartialResult
 	return httpResults
 }
 
-func printProtoRequest(queryReq *protomodels.QueryRequest, adress net.Addr) {
+func printProtoRequest(queryReq *protomodels.QueryRequest, adress string) {
 	log.Printf("Sent request to %s\n", adress)
 	log.Printf("Files:\n")
 	for _, file := range queryReq.FilesNames {
