@@ -291,10 +291,6 @@ const docTemplate = `{
                 "aggregation": {
                     "type": "string"
                 },
-                "count": {
-                    "description": "Count associated with the result.",
-                    "type": "integer"
-                },
                 "double_value": {
                     "description": "Double value (nullable).",
                     "type": "number"
