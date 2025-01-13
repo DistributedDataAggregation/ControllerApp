@@ -90,14 +90,14 @@ func mapCombinedResults(results []*protomodels.CombinedResult) []HttpPartialResu
 
 			httpResult := HttpPartialResult{
 				IsNull:      result.IsNull,
-				Aggregation: protomodels.Aggregate_name[int32(result.Function)],
+				Aggregation: HttpAggregateFunction(protomodels.Aggregate_name[int32(result.Function)]),
 			}
 
 			switch result.Type {
 			case protomodels.ResultType_INT:
 				if intValue, ok := result.GetValue().(*protomodels.CombinedResult_IntValue); ok {
 					httpResult.ResultType = "INT"
-					httpResult.Value = &intValue.IntValue
+					httpResult.IntValue = &intValue.IntValue
 				}
 			case protomodels.ResultType_FLOAT:
 				if floatValue, ok := result.GetValue().(*protomodels.CombinedResult_FloatValue); ok {

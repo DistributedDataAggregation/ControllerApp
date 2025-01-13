@@ -17,48 +17,61 @@ definitions:
   main.HttpError:
     properties:
       inner_message:
+        description: Inner error message
         type: string
       message:
+        description: Error message
         type: string
     type: object
   main.HttpPartialResult:
     properties:
       aggregation:
-        type: string
+        allOf:
+        - $ref: '#/definitions/main.HttpAggregateFunction'
+        description: The aggregate function.
       double_value:
-        description: Double value (nullable).
+        description: Double result (nullable).
         type: number
       float_value:
-        description: Float value (nullable).
+        description: Float result (nullable).
         type: number
+      int_value:
+        description: Integer result (nullable).
+        type: integer
       is_null:
         description: Indicates if the result is null.
         type: boolean
       result_type:
+        allOf:
+        - $ref: '#/definitions/main.HttpResultType'
         description: 'Type of result: "INT", "FLOAT", "DOUBLE".'
-        type: string
-      value:
-        description: Integer value (nullable).
-        type: integer
     type: object
   main.HttpQueryRequest:
     properties:
       group_columns:
+        description: The names of the columns on which grouping will be performed.
         items:
           type: string
         type: array
       select:
+        description: A list of objects describing the columns and the aggregate functions
+          to be executed on them.
         items:
           $ref: '#/definitions/main.HttpSelect'
         type: array
       table_name:
+        description: The name of the table on which the query will be executed.
         type: string
     type: object
   main.HttpQueryResponse:
     properties:
       error:
-        $ref: '#/definitions/main.HttpError'
+        allOf:
+        - $ref: '#/definitions/main.HttpError'
+        description: Information about the query processing error (if any)
       values:
+        description: List of results of performed aggregations for individual combinations
+          of grouping column values
         items:
           $ref: '#/definitions/main.HttpValue'
         type: array
@@ -66,22 +79,43 @@ definitions:
   main.HttpResult:
     properties:
       processing_time:
+        description: The total time to process the query in milliseconds.
         type: integer
       result:
-        $ref: '#/definitions/main.HttpQueryResponse'
+        allOf:
+        - $ref: '#/definitions/main.HttpQueryResponse'
+        description: The result of the processed query.
     type: object
+  main.HttpResultType:
+    enum:
+    - INT
+    - FLOAT
+    - DOUBLE
+    - UNKNOWN
+    type: string
+    x-enum-varnames:
+    - IntResult
+    - FloatResult
+    - DoubleResult
+    - UnknownResult
   main.HttpSelect:
     properties:
       column:
+        description: The name of the aggregated column.
         type: string
       function:
-        $ref: '#/definitions/main.HttpAggregateFunction'
+        allOf:
+        - $ref: '#/definitions/main.HttpAggregateFunction'
+        description: The aggregate function.
     type: object
   main.HttpValue:
     properties:
       grouping_value:
+        description: Grouping value, subsequent grouping column values ​​separated
+          by the '|' character
         type: string
       results:
+        description: List of results of given aggregations for the grouping value.
         items:
           $ref: '#/definitions/main.HttpPartialResult'
         type: array
@@ -89,10 +123,29 @@ definitions:
   main.ParquetColumnInfo:
     properties:
       name:
+        description: The name of the column.
         type: string
       type:
-        type: string
+        allOf:
+        - $ref: '#/definitions/main.ParquetColumnType'
+        description: The type of the column
     type: object
+  main.ParquetColumnType:
+    enum:
+    - INT
+    - DOUBLE
+    - FLOAT
+    - STRING
+    - BOOL
+    - UNSUPPORTED
+    type: string
+    x-enum-varnames:
+    - INT
+    - DOUBLE
+    - FLOAT
+    - STRING
+    - BOOL
+    - UNSUPPORTED
 externalDocs:
   description: OpenAPI
   url: https://swagger.io/resources/open-api/

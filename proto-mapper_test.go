@@ -218,9 +218,9 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 							Results: []HttpPartialResult{
 								{
 									IsNull:      false,
-									Value:       ptrInt64(100),
+									IntValue:    ptrInt64(100),
 									ResultType:  "INT",
-									Aggregation: protomodels.Aggregate_name[int32(protomodels.Aggregate_Maximum)],
+									Aggregation: HttpAggregateFunction(protomodels.Aggregate_name[int32(protomodels.Aggregate_Maximum)]),
 								},
 							},
 						},
