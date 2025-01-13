@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/beevik/guid"
 )
@@ -115,6 +116,10 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	tableName := r.URL.Query().Get("name")
 	if tableName == "" {
 		http.Error(w, "Missing table name", http.StatusBadRequest)
+		return
+	}
+	if strings.HasPrefix(tableName, "_") {
+		http.Error(w, "Invalid table name - table name connot start with _", http.StatusBadRequest)
 		return
 	}
 
