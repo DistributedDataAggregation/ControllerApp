@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/beevik/guid"
 )
@@ -107,7 +106,7 @@ func handleTablesSelectColumnsQuery(w http.ResponseWriter, r *http.Request) {
 // @Accept mpfd
 // @Produce json
 // @Param name query string true "Table name"
-// @Param file formData file true "File to upload (must have .parquet extension)"
+// @Param file formData file true "File to upload (must have .parquet)"
 // @Success 200 {string} string "File uploaded successfully"
 // @Failure 400 {string} string "Invalid table name or file"
 // @Failure 500 {string} string "Internal server error"
@@ -116,10 +115,6 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	tableName := r.URL.Query().Get("name")
 	if tableName == "" {
 		http.Error(w, "Missing table name", http.StatusBadRequest)
-		return
-	}
-	if strings.HasPrefix(tableName, "_") {
-		http.Error(w, "Invalid table name - table name connot start with _", http.StatusBadRequest)
 		return
 	}
 
