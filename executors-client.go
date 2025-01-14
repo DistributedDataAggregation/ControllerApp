@@ -144,15 +144,12 @@ func (ec *ExecutorsClient) SendTaskToExecutor(guid string, files []string, execu
 	//ports := []int32{8081, 8083, 8085}
 	//queryRequest, err := CreateProtoRequest(guid, files, queryReq, ec.Addresses[*ec.MainIdx], ports[*ec.MainIdx], executorIdx == *ec.MainIdx, executorsCount)
 
-	queryRequest, err := CreateProtoRequest(guid, files, queryReq, ec.Addresses[*ec.MainIdx], config.ExecutorsPort, executorIdx == *ec.MainIdx, executorsCount)
-	if err != nil {
-		return err
-	}
+	queryRequest := CreateProtoRequest(guid, files, queryReq, ec.Addresses[*ec.MainIdx], config.ExecutorsPort, executorIdx == *ec.MainIdx, executorsCount)
 
-	err = ec.sendRequest(queryRequest, executorIdx)
+	err := ec.sendRequest(queryRequest, executorIdx)
 	if err != nil {
 		log.Printf("Error sending request to executor %s: %v", ec.Sockets[executorIdx], err)
-		return err
+		return fmt.Errorf("error sending request to executor")
 	}
 
 	return nil
@@ -166,7 +163,7 @@ func (ec *ExecutorsClient) sendRequest(queryRequest *protomodels.QueryRequest, e
 
 	data, err := proto.Marshal(queryRequest)
 	if err != nil {
-		log.Printf("Marshal error: %v", err)
+		log.Printf("[%s] Marshal error: %v", queryRequest.Guid, err)
 		return err
 	}
 
@@ -192,34 +189,31 @@ func (ec *ExecutorsClient) connWrite(data []byte, executorIdx int) error {
 	return nil
 }
 
-func (ec *ExecutorsClient) ReceiveResponseFromMainExecutor(guid string) (HttpResult, error) {
+func (ec *ExecutorsClient) ReceiveResponseFromMainExecutor(guid string) QueueResult {
 
 	for i := 0; i < maxRetries; i++ {
 
 		sizeBytes, err := ec.connRead(4, *ec.MainIdx)
 		if err != nil {
-			return HttpResult{}, err
+			return QueueResult{ErrorMessage: "Failed to receive data from executor", HttpErrorCode: 500}
 		}
 		messageSize := binary.BigEndian.Uint32(sizeBytes)
 
 		data, err := ec.connRead(int(messageSize), *ec.MainIdx)
 		if err != nil {
-			return HttpResult{}, err
+			return QueueResult{ErrorMessage: "Failed to receive data from executor", HttpErrorCode: 500}
 		}
 
-		response, receivedGuid, err := ReadQueryResultProto(data)
+		response, receivedGuid := ReadQueryResultProto(data)
 
-		if err != nil {
-			return HttpResult{}, err
+		if response.HttpErrorCode != 0 || guid == receivedGuid {
+			return response
 		}
-
-		if guid == receivedGuid {
-			return response, nil
-		}
-
 	}
 
-	return HttpResult{}, fmt.Errorf("failed to receive response from %s after %d retries", ec.Addresses[*ec.MainIdx], maxRetries)
+	log.Printf("Failed to receive response from %s after %d retries", ec.Addresses[*ec.MainIdx], maxRetries)
+	return QueueResult{ErrorMessage: "Failed to receive response from executor", HttpErrorCode: 500}
+
 }
 
 func (ec *ExecutorsClient) connRead(size int, executorIdx int) ([]byte, error) {

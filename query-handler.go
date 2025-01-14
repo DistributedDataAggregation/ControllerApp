@@ -48,11 +48,6 @@ type HttpSelect struct {
 	Function HttpAggregateFunction `json:"function"` // The aggregate function.
 }
 
-type HttpError struct {
-	Message      string `json:"message,omitempty"`       // Error message
-	InnerMessage string `json:"inner_message,omitempty"` // Inner error message
-}
-
 type HttpPartialResult struct {
 	IsNull      bool                  `json:"is_null"`                // Indicates if the result is null.
 	IntValue    *int64                `json:"int_value,omitempty"`    // Integer result (nullable).
@@ -68,13 +63,12 @@ type HttpValue struct {
 }
 
 type HttpQueryResponse struct {
-	Error  *HttpError   `json:"error,omitempty"`  // Information about the query processing error (if any)
 	Values []*HttpValue `json:"values,omitempty"` // List of results of performed aggregations for individual combinations of grouping column values
 }
 
 type HttpResult struct {
-	Response HttpQueryResponse `json:"result"`          // The result of the processed query.
-	Time     int64             `json:"processing_time"` // The total time to process the query in milliseconds.
+	Response *HttpQueryResponse `json:"result"`          // The result of the processed query.
+	Time     int64              `json:"processing_time"` // The total time to process the query in milliseconds.
 }
 
 type QueryHandler struct {
@@ -110,33 +104,31 @@ func (h *QueryHandler) handleQuery(w http.ResponseWriter, r *http.Request) {
 	err = validateQueryRequest(queryReq)
 
 	if err != nil {
-		result := HttpResult{Response: HttpQueryResponse{
-			Error: &HttpError{
-				Message:      "Failed to process request",
-				InnerMessage: err.Error(),
-			}}}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(result)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	queueReq := QueueRequest{
 		Guid:       guid.New(),
 		Request:    queryReq,
-		ResultChan: make(chan HttpResult),
+		ResultChan: make(chan QueueResult),
 	}
 
 	h.Scheduler.AddQuery(queueReq)
 
-	result := <-queueReq.ResultChan
+	queueResult := <-queueReq.ResultChan
 
-	result.Time = time.Since(start).Milliseconds()
-
-	if result.Response.Error == nil {
-		w.WriteHeader(http.StatusOK)
-	} else {
-		w.WriteHeader(http.StatusInternalServerError)
+	if queueResult.HttpErrorCode != 0 {
+		http.Error(w, queueResult.ErrorMessage, queueResult.HttpErrorCode)
+		return
 	}
+
+	result := HttpResult{
+		Time:     time.Since(start).Milliseconds(),
+		Response: queueResult.QueryResponse,
+	}
+
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(result)
 }
 

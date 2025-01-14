@@ -6,10 +6,16 @@ import (
 	"github.com/beevik/guid"
 )
 
+type QueueResult struct {
+	QueryResponse *HttpQueryResponse
+	HttpErrorCode int
+	ErrorMessage  string
+}
+
 type QueueRequest struct {
 	Guid       *guid.Guid
 	Request    HttpQueryRequest
-	ResultChan chan HttpResult
+	ResultChan chan QueueResult
 }
 
 type QueriesScheduler struct {

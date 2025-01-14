@@ -274,19 +274,6 @@ const docTemplate = `{
                 "Count"
             ]
         },
-        "main.HttpError": {
-            "type": "object",
-            "properties": {
-                "inner_message": {
-                    "description": "Inner error message",
-                    "type": "string"
-                },
-                "message": {
-                    "description": "Error message",
-                    "type": "string"
-                }
-            }
-        },
         "main.HttpPartialResult": {
             "type": "object",
             "properties": {
@@ -350,14 +337,6 @@ const docTemplate = `{
         "main.HttpQueryResponse": {
             "type": "object",
             "properties": {
-                "error": {
-                    "description": "Information about the query processing error (if any)",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/main.HttpError"
-                        }
-                    ]
-                },
                 "values": {
                     "description": "List of results of performed aggregations for individual combinations of grouping column values",
                     "type": "array",
