@@ -106,7 +106,7 @@ func handleTablesSelectColumnsQuery(w http.ResponseWriter, r *http.Request) {
 // @Accept mpfd
 // @Produce json
 // @Param name query string true "Table name"
-// @Param file formData file true "File to upload (must have .parquet extension)"
+// @Param file formData file true "File to upload (must have .parquet)"
 // @Success 200 {string} string "File uploaded successfully"
 // @Failure 400 {string} string "Invalid table name or file"
 // @Failure 500 {string} string "Internal server error"
@@ -143,8 +143,9 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tempPath := filepath.Join(tablePath, "_"+guid.NewString()+"_"+fileHeader.Filename)
 	destPath := filepath.Join(tablePath, guid.NewString()+"_"+fileHeader.Filename)
-	destFile, err := os.Create(destPath)
+	destFile, err := os.Create(tempPath)
 	if err != nil {
 		http.Error(w, "Failed to save file", http.StatusInternalServerError)
 		return
@@ -155,9 +156,10 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to save file", http.StatusInternalServerError)
 		return
 	}
+	os.Rename(tempPath, destPath)
 
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "File uploaded successfully to %s", destPath)
+	fmt.Fprintf(w, "File uploaded successfully")
 }
 
 func validateFileSchema(tableName string, file multipart.File) (int, error) {

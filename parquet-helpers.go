@@ -12,8 +12,8 @@ import (
 )
 
 type ParquetColumnInfo struct {
-	Name string
-	Type string
+	Name string            `json:"name"` // The name of the column.
+	Type ParquetColumnType `json:"type"` // The type of the column
 }
 
 type ParquetColumnType string
@@ -81,7 +81,7 @@ func getParquetSchema(reader *file.Reader) []ParquetColumnInfo {
 		col := schema.Column(i)
 		columnName := col.Name()
 		columnType := getColumnType(col)
-		columns = append(columns, ParquetColumnInfo{Name: columnName, Type: columnType})
+		columns = append(columns, ParquetColumnInfo{Name: columnName, Type: ParquetColumnType(columnType)})
 	}
 
 	return columns
@@ -131,7 +131,7 @@ func FilterOutUnsupportedParquetColumns(columns []ParquetColumnInfo) []ParquetCo
 	var filteredColumns []ParquetColumnInfo
 
 	for _, col := range columns {
-		if col.Type != string(UNSUPPORTED) {
+		if col.Type != UNSUPPORTED {
 			filteredColumns = append(filteredColumns, col)
 		}
 	}
@@ -143,7 +143,7 @@ func FilterSelectParquetColumns(columns []ParquetColumnInfo) []ParquetColumnInfo
 	var filteredColumns []ParquetColumnInfo
 
 	for _, col := range columns {
-		if col.Type != string(STRING) && col.Type != string(BOOL) && col.Type != string(UNSUPPORTED) {
+		if col.Type != STRING && col.Type != BOOL && col.Type != UNSUPPORTED {
 			filteredColumns = append(filteredColumns, col)
 		}
 	}

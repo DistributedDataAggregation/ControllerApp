@@ -2,7 +2,6 @@ package main
 
 import (
 	"controller/protomodels"
-	"fmt"
 	"log"
 	"strings"
 
@@ -10,7 +9,7 @@ import (
 )
 
 func CreateProtoRequest(guid string, files []string, queryReq HttpQueryRequest, mainExecutor string, mainExecutorPort int32,
-	isCurrentNodeMain bool, executorsCount int32) (*protomodels.QueryRequest, error) {
+	isCurrentNodeMain bool, executorsCount int32) *protomodels.QueryRequest {
 
 	selects := make([]*protomodels.Select, len(queryReq.SelectColumns))
 	for i, sel := range queryReq.SelectColumns {
@@ -31,39 +30,32 @@ func CreateProtoRequest(guid string, files []string, queryReq HttpQueryRequest, 
 			MainPort:          mainExecutorPort,
 			ExecutorsCount:    executorsCount,
 		},
-	}, nil
+	}
 }
 
-func ReadQueryResultProto(data []byte) (HttpResult, string, error) {
+func ReadQueryResultProto(data []byte) (QueueResult, string) {
 	if len(data) == 0 {
-		return HttpResult{}, "", fmt.Errorf("empty input data")
+		log.Printf("Error reading response from main executor: Empty imput data")
+		return QueueResult{ErrorMessage: "Failed to read data from executor", HttpErrorCode: 500}, ""
 	}
 
 	var queryResult protomodels.QueryResult
 	err := proto.Unmarshal(data, &queryResult)
 	if err != nil {
-		log.Printf("Error unmarshalling QueryResponse: %v", err)
-		return HttpResult{}, "", err
+		log.Printf("Error unmarshalling QueryResult: %v", err)
+		return QueueResult{ErrorMessage: "Failed to read data from executor", HttpErrorCode: 500}, ""
 	}
 
-	httpResult := HttpResult{
-		Response: mapQueryResult(&queryResult),
-	}
-
-	return httpResult, queryResult.Guid, nil
+	return mapQueryResult(&queryResult), queryResult.Guid
 }
 
-func mapQueryResult(src *protomodels.QueryResult) HttpQueryResponse {
+func mapQueryResult(src *protomodels.QueryResult) QueueResult {
 	if src == nil {
-		return HttpQueryResponse{}
+		return QueueResult{}
 	}
 
-	var httpError *HttpError
 	if src.Error != nil {
-		httpError = &HttpError{
-			Message:      src.Error.Message,
-			InnerMessage: src.Error.InnerMessage,
-		}
+		return QueueResult{ErrorMessage: src.Error.Message, HttpErrorCode: 500} // TODO sometimes 400
 	}
 
 	httpValues := make([]*HttpValue, len(src.Values))
@@ -76,9 +68,8 @@ func mapQueryResult(src *protomodels.QueryResult) HttpQueryResponse {
 		}
 	}
 
-	return HttpQueryResponse{
-		Error:  httpError,
-		Values: httpValues,
+	return QueueResult{
+		QueryResponse: &HttpQueryResponse{Values: httpValues},
 	}
 }
 
@@ -90,14 +81,14 @@ func mapCombinedResults(results []*protomodels.CombinedResult) []HttpPartialResu
 
 			httpResult := HttpPartialResult{
 				IsNull:      result.IsNull,
-				Aggregation: protomodels.Aggregate_name[int32(result.Function)],
+				Aggregation: HttpAggregateFunction(protomodels.Aggregate_name[int32(result.Function)]),
 			}
 
 			switch result.Type {
 			case protomodels.ResultType_INT:
 				if intValue, ok := result.GetValue().(*protomodels.CombinedResult_IntValue); ok {
 					httpResult.ResultType = "INT"
-					httpResult.Value = &intValue.IntValue
+					httpResult.IntValue = &intValue.IntValue
 				}
 			case protomodels.ResultType_FLOAT:
 				if floatValue, ok := result.GetValue().(*protomodels.CombinedResult_FloatValue); ok {

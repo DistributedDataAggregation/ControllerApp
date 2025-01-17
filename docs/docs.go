@@ -274,30 +274,28 @@ const docTemplate = `{
                 "Count"
             ]
         },
-        "main.HttpError": {
-            "type": "object",
-            "properties": {
-                "inner_message": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
         "main.HttpPartialResult": {
             "type": "object",
             "properties": {
                 "aggregation": {
-                    "type": "string"
+                    "description": "The aggregate function.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.HttpAggregateFunction"
+                        }
+                    ]
                 },
                 "double_value": {
-                    "description": "Double value (nullable).",
+                    "description": "Double result (nullable).",
                     "type": "number"
                 },
                 "float_value": {
-                    "description": "Float value (nullable).",
+                    "description": "Float result (nullable).",
                     "type": "number"
+                },
+                "int_value": {
+                    "description": "Integer result (nullable).",
+                    "type": "integer"
                 },
                 "is_null": {
                     "description": "Indicates if the result is null.",
@@ -305,11 +303,11 @@ const docTemplate = `{
                 },
                 "result_type": {
                     "description": "Type of result: \"INT\", \"FLOAT\", \"DOUBLE\".",
-                    "type": "string"
-                },
-                "value": {
-                    "description": "Integer value (nullable).",
-                    "type": "integer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.HttpResultType"
+                        }
+                    ]
                 }
             }
         },
@@ -317,18 +315,21 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "group_columns": {
+                    "description": "The names of the columns on which grouping will be performed.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "select": {
+                    "description": "A list of objects describing the columns and the aggregate functions to be executed on them.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/main.HttpSelect"
                     }
                 },
                 "table_name": {
+                    "description": "The name of the table on which the query will be executed.",
                     "type": "string"
                 }
             }
@@ -336,10 +337,8 @@ const docTemplate = `{
         "main.HttpQueryResponse": {
             "type": "object",
             "properties": {
-                "error": {
-                    "$ref": "#/definitions/main.HttpError"
-                },
                 "values": {
+                    "description": "List of results of performed aggregations for individual combinations of grouping column values",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/main.HttpValue"
@@ -351,21 +350,48 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "processing_time": {
+                    "description": "The total time to process the query in milliseconds.",
                     "type": "integer"
                 },
                 "result": {
-                    "$ref": "#/definitions/main.HttpQueryResponse"
+                    "description": "The result of the processed query.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.HttpQueryResponse"
+                        }
+                    ]
                 }
             }
+        },
+        "main.HttpResultType": {
+            "type": "string",
+            "enum": [
+                "INT",
+                "FLOAT",
+                "DOUBLE",
+                "UNKNOWN"
+            ],
+            "x-enum-varnames": [
+                "IntResult",
+                "FloatResult",
+                "DoubleResult",
+                "UnknownResult"
+            ]
         },
         "main.HttpSelect": {
             "type": "object",
             "properties": {
                 "column": {
+                    "description": "The name of the aggregated column.",
                     "type": "string"
                 },
                 "function": {
-                    "$ref": "#/definitions/main.HttpAggregateFunction"
+                    "description": "The aggregate function.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.HttpAggregateFunction"
+                        }
+                    ]
                 }
             }
         },
@@ -373,9 +399,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "grouping_value": {
+                    "description": "Grouping value, subsequent grouping column values ​​separated by the '|' character",
                     "type": "string"
                 },
                 "results": {
+                    "description": "List of results of given aggregations for the grouping value.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/main.HttpPartialResult"
@@ -387,12 +415,37 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "name": {
+                    "description": "The name of the column.",
                     "type": "string"
                 },
                 "type": {
-                    "type": "string"
+                    "description": "The type of the column",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.ParquetColumnType"
+                        }
+                    ]
                 }
             }
+        },
+        "main.ParquetColumnType": {
+            "type": "string",
+            "enum": [
+                "INT",
+                "DOUBLE",
+                "FLOAT",
+                "STRING",
+                "BOOL",
+                "UNSUPPORTED"
+            ],
+            "x-enum-varnames": [
+                "INT",
+                "DOUBLE",
+                "FLOAT",
+                "STRING",
+                "BOOL",
+                "UNSUPPORTED"
+            ]
         }
     },
     "externalDocs": {

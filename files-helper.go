@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func findDataDirs() ([]string, error) {
@@ -36,7 +37,7 @@ func findDataFiles(tableName string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && filepath.Ext(info.Name()) == ".parquet" {
+		if !info.IsDir() && !strings.HasPrefix(info.Name(), "_") && filepath.Ext(info.Name()) == ".parquet" {
 			//relPath, _ := filepath.Rel(config.DataPath, path)
 			files = append(files, path)
 		}

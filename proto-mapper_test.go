@@ -169,7 +169,7 @@ func TestCreateProtoRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, _ := CreateProtoRequest(tt.guid, tt.files, tt.queryReq, tt.mainExecutor, tt.mainExecutorPort, tt.isCurrentNodeMain, tt.executorsCount)
+			result := CreateProtoRequest(tt.guid, tt.files, tt.queryReq, tt.mainExecutor, tt.mainExecutorPort, tt.isCurrentNodeMain, tt.executorsCount)
 
 			if !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("expected %v, got %v", tt.expected, result)
@@ -183,7 +183,7 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 		name           string
 		guid           string
 		data           []byte
-		expectedResult HttpResult
+		expectedResult QueueResult
 		expectedError  bool
 	}{
 		{
@@ -210,17 +210,17 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 				data, _ := proto.Marshal(queryResponse)
 				return data
 			}(),
-			expectedResult: HttpResult{
-				Response: HttpQueryResponse{
+			expectedResult: QueueResult{
+				QueryResponse: &HttpQueryResponse{
 					Values: []*HttpValue{
 						{
 							GroupingValue: "group1",
 							Results: []HttpPartialResult{
 								{
 									IsNull:      false,
-									Value:       ptrInt64(100),
+									IntValue:    ptrInt64(100),
 									ResultType:  "INT",
-									Aggregation: protomodels.Aggregate_name[int32(protomodels.Aggregate_Maximum)],
+									Aggregation: HttpAggregateFunction(protomodels.Aggregate_name[int32(protomodels.Aggregate_Maximum)]),
 								},
 							},
 						},
@@ -233,24 +233,24 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 			name:           "invalid data",
 			guid:           "guid",
 			data:           []byte("invalid protobuf data"),
-			expectedResult: HttpResult{},
+			expectedResult: QueueResult{ErrorMessage: "Failed to read data from executor", HttpErrorCode: 500},
 			expectedError:  true,
 		},
 		{
 			name:           "empty data",
 			guid:           "guid",
 			data:           []byte{},
-			expectedResult: HttpResult{},
+			expectedResult: QueueResult{ErrorMessage: "Failed to read data from executor", HttpErrorCode: 500},
 			expectedError:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, receivedGuid, err := ReadQueryResultProto(tt.data)
+			result, receivedGuid := ReadQueryResultProto(tt.data)
 
-			if (err != nil) != tt.expectedError {
-				t.Errorf("expected error: %v, got: %v", tt.expectedError, err)
+			if (result.HttpErrorCode != 0) != tt.expectedError {
+				t.Errorf("expected error: %v, got: %v", tt.expectedError, result.ErrorMessage)
 			}
 
 			if tt.expectedError {
@@ -262,8 +262,8 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 
 			}
 
-			if !reflect.DeepEqual(&result.Response, &tt.expectedResult.Response) {
-				t.Errorf("expected response: %v, got: %v", tt.expectedResult.Response, result.Response)
+			if !reflect.DeepEqual(&result, &tt.expectedResult) {
+				t.Errorf("expected response: %v, got: %v", tt.expectedResult, result)
 			}
 		})
 	}

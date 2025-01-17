@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"sync"
 )
@@ -15,84 +14,70 @@ func NewProcessor(planner *Planner, executorsClient *ExecutorsClient) *Processor
 	return &Processor{Planner: *planner, ExecutorsClient: *executorsClient}
 }
 
-func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) HttpResult {
+func (p *Processor) ProcessRequest(guid string, queryReq HttpQueryRequest) QueueResult {
 
 	availableIdxs, err := p.ExecutorsClient.GetAvailableExecutorIdxs()
 
 	if err != nil {
-		log.Printf("Could not proccess request: %s", err.Error())
-
-		return HttpResult{Response: HttpQueryResponse{
-			Error: &HttpError{
-				Message:      "Could not proccess request",
-				InnerMessage: err.Error(),
-			}}}
+		log.Printf("[%s] Could not proccess request: %s", guid, err.Error())
+		return QueueResult{ErrorMessage: err.Error(), HttpErrorCode: 500}
 	}
 
 	files, err := findDataFiles(queryReq.TableName)
 	if err != nil || len(files) == 0 {
-		innerMessage := ""
-		if err != nil {
-			innerMessage = err.Error()
-		}
-		log.Printf("Could not find files: %s", innerMessage)
-
-		return HttpResult{Response: HttpQueryResponse{
-			Error: &HttpError{
-				Message:      "Could not find files",
-				InnerMessage: innerMessage,
-			}}}
+		log.Printf("[%s] Could not retreive data files: %s", guid, err.Error())
+		return QueueResult{ErrorMessage: "Could not retreive data files", HttpErrorCode: 500}
+	}
+	if len(files) == 0 {
+		log.Printf("[%s] Could not find data files", guid)
+		return QueueResult{ErrorMessage: "Could not find data files", HttpErrorCode: 400}
 	}
 
-	err = p.validateFilesSchema(files)
+	valid, err := p.validateFilesSchema(files)
 	if err != nil {
-		log.Printf("Failed to process request [%s]: %v", guid, err)
-		return HttpResult{Response: HttpQueryResponse{
-			Error: &HttpError{
-				Message:      "Failed to process request",
-				InnerMessage: err.Error(),
-			}}}
+		log.Printf("[%s] Failed to process request: %v", guid, err)
+		return QueueResult{ErrorMessage: "Could not validate table schemat", HttpErrorCode: 500}
+	}
+	if !valid {
+		log.Printf("[%s] Failed to process request", guid)
+		return QueueResult{ErrorMessage: "Invalid table schema", HttpErrorCode: 500}
 	}
 
 	filesPerExecutorIdx, executorsIdxs := p.Planner.distributeFiles(files, availableIdxs)
 
-	result, err := p.sendToExecutors(guid, filesPerExecutorIdx, executorsIdxs, queryReq)
-	if err != nil {
-		log.Printf("Failed to process request [%s]: %v", guid, err)
-		return HttpResult{Response: HttpQueryResponse{
-			Error: &HttpError{
-				Message:      "Failed to process request",
-				InnerMessage: err.Error(),
-			}}}
+	result := p.sendToExecutors(guid, filesPerExecutorIdx, executorsIdxs, queryReq)
+	if result.HttpErrorCode != 0 {
+		log.Printf("[%s] Failed to process request: %s", guid, result.ErrorMessage)
 	}
 
 	return result
 }
 
-func (p *Processor) validateFilesSchema(files []string) error {
+func (p *Processor) validateFilesSchema(files []string) (bool, error) {
 	schema, err := GetParquetSchemaByPath(files[0])
 	if err != nil {
-		return err
+		return false, err
 	}
 	for i := 1; i < len(files); i++ {
 		temp, err := GetParquetSchemaByPath(files[i])
 		if err != nil {
-			return err
+			return false, err
 		}
 		if !EqualsParquetSchema(schema, temp) {
-			return fmt.Errorf("files %s and %s have different schema", files[0], files[i])
+			log.Printf("files %s and %s have different schema", files[0], files[i])
+			return false, nil
 		}
 	}
-	return nil
+	return true, nil
 }
 
-func (p *Processor) sendToExecutors(guid string, filesPerExecutorIdx map[int][]string, executorsIdxs []int, queryReq HttpQueryRequest) (HttpResult, error) {
+func (p *Processor) sendToExecutors(guid string, filesPerExecutorIdx map[int][]string, executorsIdxs []int, queryReq HttpQueryRequest) QueueResult {
 
 	mainExecutorIdx := *p.ExecutorsClient.MainIdx
 
 	err := p.ExecutorsClient.SendTaskToExecutor(guid, filesPerExecutorIdx[mainExecutorIdx], mainExecutorIdx, int32(len(executorsIdxs)), queryReq)
 	if err != nil {
-		return HttpResult{}, err
+		return QueueResult{ErrorMessage: err.Error(), HttpErrorCode: 500}
 	}
 
 	var wg sync.WaitGroup
@@ -122,15 +107,9 @@ func (p *Processor) sendToExecutors(guid string, filesPerExecutorIdx map[int][]s
 
 	for err := range errChan {
 		if err != nil {
-			return HttpResult{}, err
+			return QueueResult{ErrorMessage: err.Error(), HttpErrorCode: 500}
 		}
 	}
 
-	response, err := p.ExecutorsClient.ReceiveResponseFromMainExecutor(guid)
-	if err != nil {
-		return HttpResult{}, err
-	}
-
-	return response, nil
-
+	return p.ExecutorsClient.ReceiveResponseFromMainExecutor(guid)
 }
