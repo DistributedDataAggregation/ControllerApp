@@ -136,6 +136,9 @@ func FilterOutUnsupportedParquetColumns(columns []ParquetColumnInfo) []ParquetCo
 		}
 	}
 
+	if filteredColumns == nil {
+		return []ParquetColumnInfo{}
+	}
 	return filteredColumns
 }
 
@@ -148,5 +151,8 @@ func FilterSelectParquetColumns(columns []ParquetColumnInfo) []ParquetColumnInfo
 		}
 	}
 
+	if filteredColumns == nil {
+		return []ParquetColumnInfo{}
+	}
 	return filteredColumns
 }
