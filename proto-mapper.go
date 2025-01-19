@@ -86,18 +86,18 @@ func mapCombinedResults(results []*protomodels.CombinedResult) []HttpPartialResu
 
 			switch result.Type {
 			case protomodels.ResultType_INT:
+				httpResult.ResultType = "INT"
 				if intValue, ok := result.GetValue().(*protomodels.CombinedResult_IntValue); ok {
-					httpResult.ResultType = "INT"
 					httpResult.IntValue = &intValue.IntValue
 				}
 			case protomodels.ResultType_FLOAT:
+				httpResult.ResultType = "FLOAT"
 				if floatValue, ok := result.GetValue().(*protomodels.CombinedResult_FloatValue); ok {
-					httpResult.ResultType = "FLOAT"
 					httpResult.FloatValue = &floatValue.FloatValue
 				}
 			case protomodels.ResultType_DOUBLE:
+				httpResult.ResultType = "DOUBLE"
 				if doubleValue, ok := result.GetValue().(*protomodels.CombinedResult_DoubleValue); ok {
-					httpResult.ResultType = "DOUBLE"
 					httpResult.DoubleValue = &doubleValue.DoubleValue
 				}
 			default:
