@@ -40,6 +40,7 @@ require (
 	github.com/swaggo/files v1.0.1 // indirect
 	golang.org/x/net v0.32.0 // indirect
 	golang.org/x/tools v0.28.0 // indirect
+	golang.org/x/tools/cmd/cover v0.1.0-deprecated // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

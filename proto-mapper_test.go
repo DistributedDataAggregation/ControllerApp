@@ -178,7 +178,155 @@ func TestCreateProtoRequest(t *testing.T) {
 	}
 }
 
-func TestReadResponseFromMainExecutor(t *testing.T) {
+func TestMapQueryResult(t *testing.T) {
+	tests := []struct {
+		name           string
+		src            *protomodels.QueryResult
+		expectedResult QueueResult
+	}{
+		{
+			name: "valid query result with no errors",
+			src: &protomodels.QueryResult{
+				Error: nil,
+				Values: []*protomodels.ResultValue{
+					{
+						GroupingValue: "group1",
+						Results: []*protomodels.CombinedResult{
+							{
+								IsNull:   false,
+								Type:     protomodels.ResultType_INT,
+								Function: protomodels.Aggregate_Sum,
+								Value:    &protomodels.CombinedResult_IntValue{IntValue: 42},
+							},
+						},
+					},
+				},
+			},
+			expectedResult: QueueResult{
+				QueryResponse: &HttpQueryResponse{
+					Values: []*HttpValue{
+						{
+							GroupingValue: "group1",
+							Results: []HttpPartialResult{
+								{
+									IsNull:      false,
+									IntValue:    ptrInt64(42),
+									ResultType:  "INT",
+									Aggregation: HttpAggregateFunction(protomodels.Aggregate_name[int32(protomodels.Aggregate_Sum)]),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "query result with an error",
+			src: &protomodels.QueryResult{
+				Error: &protomodels.Error{
+					Message: "Test error",
+				},
+			},
+			expectedResult: QueueResult{
+				ErrorMessage:  "Test error",
+				HttpErrorCode: 500,
+			},
+		},
+		{
+			name:           "nil query result",
+			src:            nil,
+			expectedResult: QueueResult{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := mapQueryResult(tt.src)
+
+			if !reflect.DeepEqual(result, tt.expectedResult) {
+				t.Errorf("expected: %v, got: %v", tt.expectedResult, result)
+			}
+		})
+	}
+}
+
+func TestMapCombinedResults(t *testing.T) {
+	tests := []struct {
+		name           string
+		results        []*protomodels.CombinedResult
+		expectedResult []HttpPartialResult
+	}{
+		{
+			name: "valid combined results",
+			results: []*protomodels.CombinedResult{
+				{
+					IsNull:   false,
+					Type:     protomodels.ResultType_INT,
+					Function: protomodels.Aggregate_Maximum,
+					Value:    &protomodels.CombinedResult_IntValue{IntValue: 10},
+				},
+				{
+					IsNull:   false,
+					Type:     protomodels.ResultType_FLOAT,
+					Function: protomodels.Aggregate_Minimum,
+					Value:    &protomodels.CombinedResult_FloatValue{FloatValue: 20.5},
+				},
+			},
+			expectedResult: []HttpPartialResult{
+				{
+					IsNull:      false,
+					IntValue:    ptrInt64(10),
+					ResultType:  "INT",
+					Aggregation: HttpAggregateFunction(protomodels.Aggregate_name[int32(protomodels.Aggregate_Maximum)]),
+				},
+				{
+					IsNull:      false,
+					FloatValue:  ptrFloat32(20.5),
+					ResultType:  "FLOAT",
+					Aggregation: HttpAggregateFunction(protomodels.Aggregate_name[int32(protomodels.Aggregate_Minimum)]),
+				},
+			},
+		},
+		{
+			name:           "empty results",
+			results:        []*protomodels.CombinedResult{},
+			expectedResult: []HttpPartialResult{},
+		},
+		{
+			name: "results with nil values",
+			results: []*protomodels.CombinedResult{
+				nil,
+				{
+					IsNull:   true,
+					Type:     protomodels.ResultType_DOUBLE,
+					Function: protomodels.Aggregate_Average,
+					Value:    &protomodels.CombinedResult_DoubleValue{DoubleValue: 50.75},
+				},
+			},
+			expectedResult: []HttpPartialResult{
+				{},
+				{
+					IsNull:      true,
+					DoubleValue: ptrFloat64(50.75),
+					ResultType:  "DOUBLE",
+					Aggregation: HttpAggregateFunction(protomodels.Aggregate_name[int32(protomodels.Aggregate_Average)]),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := mapCombinedResults(tt.results)
+
+			if !reflect.DeepEqual(result, tt.expectedResult) {
+				t.Errorf("expected: %v, got: %v", tt.expectedResult, result)
+			}
+		})
+	}
+}
+
+func TestReadQueryResultProto(t *testing.T) {
 	tests := []struct {
 		name           string
 		guid           string
@@ -267,8 +415,4 @@ func TestReadResponseFromMainExecutor(t *testing.T) {
 			}
 		})
 	}
-}
-
-func ptrInt64(v int64) *int64 {
-	return &v
 }
