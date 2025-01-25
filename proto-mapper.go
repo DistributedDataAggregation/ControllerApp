@@ -55,7 +55,7 @@ func mapQueryResult(src *protomodels.QueryResult) QueueResult {
 	}
 
 	if src.Error != nil {
-		return QueueResult{ErrorMessage: src.Error.Message, HttpErrorCode: 500} // TODO sometimes 400
+		return QueueResult{ErrorMessage: src.Error.Message, HttpErrorCode: 500}
 	}
 
 	httpValues := make([]*HttpValue, len(src.Values))
