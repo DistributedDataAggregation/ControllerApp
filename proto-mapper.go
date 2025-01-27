@@ -109,28 +109,3 @@ func mapCombinedResults(results []*protomodels.CombinedResult) []HttpPartialResu
 	}
 	return httpResults
 }
-
-func printProtoRequest(queryReq *protomodels.QueryRequest, adress string) {
-	log.Printf("Sent request to %s\n", adress)
-	log.Printf("Files:\n")
-	for _, file := range queryReq.FilesNames {
-		log.Printf("	%s, \n", file)
-	}
-
-	log.Printf("Grouping columns:\n")
-	for _, col := range queryReq.Select {
-		log.Printf("	%s, \n", col)
-	}
-
-	log.Printf("Select:\n")
-	for _, sel := range queryReq.Select {
-		log.Printf("	Column %s, Function %s,\n", sel.Column, sel.Function)
-	}
-
-	log.Printf("Main executor:\n")
-	log.Printf("	Is main: %t", queryReq.Executor.IsCurrentNodeMain)
-	log.Printf("	Main ip address: %s", queryReq.Executor.MainIpAddress)
-	log.Printf("	Main port: %d", queryReq.Executor.MainPort)
-	log.Printf("	Executors count: %d", queryReq.Executor.ExecutorsCount)
-
-}
