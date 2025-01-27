@@ -141,9 +141,6 @@ func (ec *ExecutorsClient) getFirstAvailableExecutor() int {
 
 func (ec *ExecutorsClient) SendTaskToExecutor(guid string, files []string, executorIdx int, executorsCount int32, queryReq HttpQueryRequest) error {
 
-	//ports := []int32{8081, 8083, 8085}
-	//queryRequest, err := CreateProtoRequest(guid, files, queryReq, ec.Addresses[*ec.MainIdx], ports[*ec.MainIdx], executorIdx == *ec.MainIdx, executorsCount)
-
 	queryRequest := CreateProtoRequest(guid, files, queryReq, ec.Addresses[*ec.MainIdx], config.ExecutorsPort, executorIdx == *ec.MainIdx, executorsCount)
 
 	err := ec.sendRequest(queryRequest, executorIdx)
