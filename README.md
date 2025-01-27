@@ -1,4 +1,4 @@
-# Distributed Data Aggregation system - ControllerApp
+# Distributed Data Aggregation System - ControllerApp
 
 The controller acts as an application server, mediating between the client and the execution module responsible for performing computations. The core functionality of the controller lies in managing communication across two layers: with the client and with the execution module. The first responsibility is achieved through a public web API that handles user queries. The second layer comes into play during query processing, where the controller distributes tasks among all available executors and collects results from one of them.
 
